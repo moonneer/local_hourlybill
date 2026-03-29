@@ -1,4 +1,4 @@
-import { FileText, Briefcase, FileDown, Circle } from "lucide-react";
+import { Briefcase, Clock, FileText, ChevronRight, Scale } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -16,9 +16,9 @@ import {
 import { Badge } from "@/components/ui/badge";
 
 const navItems = [
-  { title: "Time Entries", url: "/", icon: FileText },
-  { title: "Matter Setup", url: "/query", icon: Briefcase },
-  { title: "Invoice Generator", url: "/pdf", icon: FileDown },
+  { title: "Matters", url: "/query", icon: Briefcase },
+  { title: "Time Entries", url: "/", icon: Clock },
+  { title: "Invoices", url: "/pdf", icon: FileText },
 ];
 
 function LocalModeBadge() {
@@ -32,10 +32,10 @@ function LocalModeBadge() {
   if (!isLocalMode) return null;
 
   return (
-    <div className="flex justify-center">
+    <div className="flex justify-center p-2">
       <Badge
-        variant="outline"
-        className="text-xs text-muted-foreground/70 border-border/50 bg-muted/20 px-3 py-1 font-medium"
+        variant="secondary"
+        className="w-full justify-center bg-amber-100 text-amber-800 hover:bg-amber-100/80 border-0 py-1.5"
       >
         Local Mode
       </Badge>
@@ -47,25 +47,25 @@ export function AppSidebar() {
   const [location] = useLocation();
 
   return (
-    <Sidebar className="border-r border-border/50">
-      <SidebarHeader className="px-6 py-6 border-b border-border/50">
+    <Sidebar className="border-r border-border bg-sidebar">
+      <SidebarHeader className="px-6 py-6 border-b border-border/40">
         <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/20 text-primary">
-            <Circle className="w-5 h-5 fill-primary" />
+          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary text-primary-foreground shadow-sm">
+            <Scale className="w-4 h-4" />
           </div>
-          <span className="text-xl font-bold tracking-tight text-foreground">
+          <span className="text-xl font-bold tracking-tight text-sidebar-foreground">
             HourlyBill
           </span>
         </div>
       </SidebarHeader>
-      <SidebarContent className="px-3 py-4">
+      <SidebarContent className="px-3 py-6">
         <SidebarGroup>
-          <SidebarGroupLabel className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70 mb-2 px-3">
-            Navigation
+          <SidebarGroupLabel className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-2">
+            Workflow
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu className="gap-1.5">
-              {navItems.map((item) => {
+            <SidebarMenu className="gap-2">
+              {navItems.map((item, index) => {
                 const isActive =
                   location === item.url ||
                   (item.url !== "/" && location.startsWith(item.url));
@@ -74,17 +74,20 @@ export function AppSidebar() {
                     <SidebarMenuButton
                       asChild
                       isActive={isActive}
-                      className={`h-10 px-3 rounded-md transition-colors ${
+                      className={`h-10 px-3 rounded-md transition-all duration-200 group relative ${
                         isActive
-                          ? "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
-                          : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                          ? "bg-primary text-primary-foreground font-medium shadow-sm hover:bg-primary/90 hover:text-primary-foreground"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
                       }`}
                     >
-                      <Link href={item.url} className="flex items-center gap-3 w-full">
+                      <Link href={item.url} className="flex items-center w-full">
                         <item.icon
-                          className={`w-4 h-4 ${isActive ? "text-primary" : "text-muted-foreground"}`}
+                          className={`w-4 h-4 mr-3 ${isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-foreground"}`}
                         />
-                        <span className="font-medium">{item.title}</span>
+                        <span>{item.title}</span>
+                        {index < navItems.length - 1 && (
+                          <ChevronRight className={`w-3 h-3 ml-auto opacity-0 -translate-x-2 transition-all duration-200 ${isActive ? 'opacity-100 translate-x-0' : 'group-hover:opacity-100 group-hover:translate-x-0'}`} />
+                        )}
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -94,7 +97,7 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter className="p-4 border-t border-border/50">
+      <SidebarFooter className="border-t border-border/40 p-2">
         <LocalModeBadge />
       </SidebarFooter>
     </Sidebar>

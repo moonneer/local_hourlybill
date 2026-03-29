@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiRequest } from "@/lib/queryClient";
 import { formatCurrency, formatHours, safeParseFloat } from "@/lib/utils";
-import { Save, RefreshCw, FileText, Plus, Upload, Trash2, Mail } from "lucide-react";
+import { Save, RefreshCw, FileText, Plus, Upload, Trash2, Mail, Clock, Briefcase, FileDown, Inbox, AlertCircle } from "lucide-react";
 
 type EntryType = 'time' | 'expense' | 'potential_expense';
 
@@ -171,94 +171,135 @@ export default function TimeEntriesPage() {
   }, [entries]);
 
   return (
-    <div className="max-w-7xl mx-auto p-6 space-y-8">
-      {/* Header Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-card/50 p-4 rounded-xl border border-border/50 backdrop-blur">
-        <div className="flex items-center gap-3 w-full sm:w-auto">
-          <Select value={selectedQuery} onValueChange={handleQueryChange}>
-            <SelectTrigger className="w-[280px] bg-background">
-              <SelectValue placeholder="Select a matter to edit" />
-            </SelectTrigger>
-            <SelectContent>
-              {queriesData?.queries?.map(q => (
-                <SelectItem key={q} value={q}>{q}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button variant="outline" size="icon" onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/time-entries", selectedQuery] })} disabled={!selectedQuery}>
-            <RefreshCw className="w-4 h-4" />
-          </Button>
+    <div className="max-w-[1200px] mx-auto p-4 sm:p-6 lg:p-8 space-y-8 animate-in fade-in duration-500 pb-24">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Time Entries</h1>
+          <p className="text-muted-foreground mt-1">Review and refine AI-generated billing items.</p>
         </div>
         
-        <div className="flex items-center gap-3 w-full sm:w-auto">
-          {hasUnsavedChanges && <span className="text-sm text-amber-500 font-medium px-2">Unsaved changes</span>}
-          <Button variant="secondary" onClick={() => setLocation(`/pdf?query=${selectedQuery}`)} disabled={!selectedQuery}>
-            <FileText className="w-4 h-4 mr-2" />
-            PDF
-          </Button>
-          <Button onClick={handleSave} disabled={!selectedQuery || saveMutation.isPending} className="min-w-[120px]">
-            {saveMutation.isPending ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-            Save
+        <div className="flex items-center gap-3">
+          <Select value={selectedQuery} onValueChange={handleQueryChange}>
+            <SelectTrigger className="w-[280px] bg-white shadow-sm border-border/80 h-10">
+              <SelectValue placeholder="Select a matter..." />
+            </SelectTrigger>
+            <SelectContent>
+              {queriesData?.queries?.length === 0 ? (
+                <div className="p-3 text-sm text-muted-foreground text-center">No matters found</div>
+              ) : (
+                queriesData?.queries?.map(q => (
+                  <SelectItem key={q} value={q}>{q}</SelectItem>
+                ))
+              )}
+            </SelectContent>
+          </Select>
+          <Button variant="outline" size="icon" onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/time-entries", selectedQuery] })} disabled={!selectedQuery} className="h-10 w-10 shrink-0 bg-white">
+            <RefreshCw className="w-4 h-4 text-muted-foreground" />
           </Button>
         </div>
       </div>
 
       {entriesError && (
-        <div className="p-4 bg-destructive/10 text-destructive border border-destructive/20 rounded-lg">
-          Failed to load entries: {(entriesError as Error).message}
+        <div className="p-4 bg-destructive/5 border border-destructive/20 rounded-xl flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+          <div className="text-sm text-destructive font-medium">Failed to load entries: {(entriesError as Error).message}</div>
+        </div>
+      )}
+
+      {!selectedQuery && !isLoadingEntries && (
+        <div className="mt-12 flex flex-col items-center justify-center p-12 text-center bg-white border border-border/60 border-dashed rounded-2xl shadow-sm">
+          <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-6">
+            <Inbox className="w-8 h-8 text-primary" />
+          </div>
+          <h2 className="text-xl font-semibold mb-2">No Matter Selected</h2>
+          <p className="text-muted-foreground max-w-sm mb-6">
+            Select an existing matter from the dropdown above, or create a new matter to start generating time entries.
+          </p>
+          <Button onClick={() => setLocation('/query')} className="shadow-sm">
+            <Plus className="w-4 h-4 mr-2" />
+            Create New Matter
+          </Button>
         </div>
       )}
 
       {selectedQuery && !isLoadingEntries && (
         <>
-          {/* Bill Info */}
-          <Card className="border-border/50 shadow-sm overflow-hidden">
-            <CardHeader className="bg-muted/10 pb-4">
-              <CardTitle className="text-lg">Bill Information</CardTitle>
-            </CardHeader>
-            <CardContent className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="space-y-2">
-                  <Label>Client Name</Label>
-                  <Input value={billInfo.client_name} onChange={e => updateBillInfo('client_name', e.target.value)} />
+          {/* Bill Info Header */}
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-border/60">
+            <div className="flex flex-col md:flex-row justify-between gap-6">
+              <div className="space-y-4 flex-1">
+                <div>
+                  <div className="text-sm font-medium text-muted-foreground mb-1 uppercase tracking-wider">Client</div>
+                  <Input 
+                    value={billInfo.client_name} 
+                    onChange={e => updateBillInfo('client_name', e.target.value)}
+                    className="text-xl font-semibold h-auto py-1 px-0 border-transparent hover:border-border focus-visible:border-primary focus-visible:ring-0 bg-transparent rounded-sm shadow-none w-full max-w-sm transition-colors"
+                    placeholder="Enter client name..."
+                  />
                 </div>
-                <div className="space-y-2">
-                  <Label>User Name</Label>
-                  <Input value={billInfo.user_name} onChange={e => updateBillInfo('user_name', e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Billing Rate ($/hr)</Label>
-                  <Input type="number" value={billInfo.billing_rate} onChange={e => updateBillInfo('billing_rate', parseFloat(e.target.value))} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Timezone</Label>
-                  <Input value={billInfo.timezone} onChange={e => updateBillInfo('timezone', e.target.value)} />
+                
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-6 pt-2 border-t border-border/40">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Professional</Label>
+                    <Input value={billInfo.user_name} onChange={e => updateBillInfo('user_name', e.target.value)} className="h-8 text-sm" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Default Rate ($/hr)</Label>
+                    <Input type="number" value={billInfo.billing_rate} onChange={e => updateBillInfo('billing_rate', parseFloat(e.target.value))} className="h-8 text-sm" />
+                  </div>
+                  <div className="space-y-1.5 hidden sm:block">
+                    <Label className="text-xs text-muted-foreground">Timezone</Label>
+                    <Input value={billInfo.timezone} onChange={e => updateBillInfo('timezone', e.target.value)} className="h-8 text-sm" />
+                  </div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
 
-          {/* Actions */}
-          <div className="flex gap-3">
-            <Button onClick={addEntry} className="shadow-sm">
-              <Plus className="w-4 h-4 mr-2" />
-              Add Entry
-            </Button>
-            <Button variant="outline" className="shadow-sm">
-              <Upload className="w-4 h-4 mr-2" />
-              Import Bill4Time
-            </Button>
+              <div className="flex flex-col items-end justify-between border-l border-border/40 pl-6 shrink-0">
+                <div className="text-right mb-6 md:mb-0">
+                  <div className="text-sm font-medium text-muted-foreground mb-1">Total Unbilled</div>
+                  <div className="text-3xl font-bold text-primary tracking-tight">
+                    {formatCurrency(entries.reduce((sum, e) => sum + (e.amount_charged || 0), 0))}
+                  </div>
+                  <div className="text-sm text-muted-foreground mt-1">
+                    {formatHours(entries.reduce((sum, e) => sum + (e.entry_type === 'time' ? (e.predicted_time || 0) : 0), 0))} recorded
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  <Button variant="outline" size="sm" onClick={() => setLocation(`/pdf?query=${selectedQuery}`)} disabled={!selectedQuery}>
+                    <FileText className="w-4 h-4 mr-2" />
+                    Preview Invoice
+                  </Button>
+                  <Button size="sm" onClick={handleSave} disabled={!selectedQuery || saveMutation.isPending} className="min-w-[100px] shadow-sm relative">
+                    {saveMutation.isPending ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                    Save
+                    {hasUnsavedChanges && <span className="absolute -top-1 -right-1 flex h-3 w-3"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span><span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span></span>}
+                  </Button>
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* Entries */}
-          <div className="space-y-8">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-foreground">Entries</h3>
+            <div className="flex gap-2">
+              <Button onClick={addEntry} size="sm" variant="secondary" className="shadow-sm">
+                <Plus className="w-4 h-4 mr-2" />
+                Add Manual Entry
+              </Button>
+            </div>
+          </div>
+
+          {/* Entries List */}
+          <div className="space-y-10">
             {groupedEntries.unsaved.length > 0 && (
               <div className="space-y-4">
-                <h3 className="text-lg font-medium text-amber-500 flex items-center gap-2">
+                <div className="flex items-center gap-2 pb-2 border-b border-amber-200">
                   <div className="w-2 h-2 rounded-full bg-amber-500" />
-                  New / Unsaved
-                </h3>
-                <div className="grid gap-4">
+                  <h3 className="text-sm font-semibold text-amber-600 uppercase tracking-wider">New / Unsaved Entries</h3>
+                </div>
+                <div className="grid gap-3">
                   {groupedEntries.unsaved.map(entry => (
                     <EntryCard key={entry.__id} entry={entry} updateEntry={updateEntry} deleteEntry={deleteEntry} />
                   ))}
@@ -272,13 +313,17 @@ export default function TimeEntriesPage() {
 
               return (
                 <div key={matter} className="space-y-4">
-                  <div className="flex items-end justify-between border-b border-border/50 pb-2">
-                    <h3 className="text-xl font-semibold text-primary">{matter}</h3>
-                    <div className="text-sm text-muted-foreground font-medium">
-                      {formatHours(totalHours)} • {formatCurrency(totalAmount)}
+                  <div className="flex items-center justify-between pb-2 border-b border-border/60">
+                    <div className="flex items-center gap-2">
+                      <Briefcase className="w-4 h-4 text-muted-foreground" />
+                      <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">{matter}</h3>
+                    </div>
+                    <div className="text-sm font-medium">
+                      <span className="text-muted-foreground mr-3">{formatHours(totalHours)}</span>
+                      <span className="text-foreground">{formatCurrency(totalAmount)}</span>
                     </div>
                   </div>
-                  <div className="grid gap-4">
+                  <div className="grid gap-3">
                     {matterEntries.map(entry => (
                       <EntryCard key={entry.__id} entry={entry} updateEntry={updateEntry} deleteEntry={deleteEntry} />
                     ))}
@@ -286,15 +331,24 @@ export default function TimeEntriesPage() {
                 </div>
               );
             })}
+            
+            {entries.length === 0 && (
+              <div className="py-12 text-center text-muted-foreground border border-border/40 border-dashed rounded-xl bg-white/50">
+                No entries found for this matter. Run an analysis or add entries manually.
+              </div>
+            )}
           </div>
         </>
       )}
 
       {isLoadingEntries && (
-        <div className="space-y-6">
-          <Skeleton className="h-[200px] w-full rounded-xl" />
-          <Skeleton className="h-[150px] w-full rounded-xl" />
-          <Skeleton className="h-[150px] w-full rounded-xl" />
+        <div className="space-y-8 mt-8">
+          <Skeleton className="h-[200px] w-full rounded-2xl" />
+          <div className="space-y-4">
+            <Skeleton className="h-6 w-32" />
+            <Skeleton className="h-[120px] w-full rounded-xl" />
+            <Skeleton className="h-[120px] w-full rounded-xl" />
+          </div>
         </div>
       )}
     </div>
@@ -305,79 +359,88 @@ function EntryCard({ entry, updateEntry, deleteEntry }: { entry: TimeEntry, upda
   const isTime = entry.entry_type === 'time';
 
   return (
-    <Card className="relative overflow-hidden border-border/50 transition-all hover:border-primary/30">
-      {entry.__draft && <div className="absolute top-0 left-0 w-1 h-full bg-amber-500" />}
-      <CardContent className="p-5">
-        <div className="flex flex-col md:flex-row gap-6">
-          <div className="flex-1 space-y-4">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <Card className="relative overflow-hidden border-border/60 shadow-sm transition-all hover:shadow-md hover:border-border bg-white group">
+      {entry.__draft && <div className="absolute top-0 left-0 w-1 h-full bg-amber-400" />}
+      <CardContent className="p-0">
+        <div className="flex flex-col md:flex-row">
+          <div className="flex-1 p-5 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-start gap-4 justify-between">
+              <div className="space-y-1.5 flex-1 max-w-full">
+                <Input 
+                  value={entry.description || ''} 
+                  onChange={e => updateEntry(entry.__id, 'description', e.target.value)} 
+                  className="font-medium text-foreground h-auto py-1 px-2 -ml-2 border-transparent hover:border-border focus-visible:border-primary bg-transparent shadow-none"
+                  placeholder="Description of work..."
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2">
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Matter</Label>
-                <Input value={entry.matter || ''} onChange={e => updateEntry(entry.__id, 'matter', e.target.value)} className="h-9" />
+                <Label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Date</Label>
+                <Input type="date" value={entry.date || ''} onChange={e => updateEntry(entry.__id, 'date', e.target.value)} className="h-8 text-sm" />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Date</Label>
-                <Input type="date" value={entry.date || ''} onChange={e => updateEntry(entry.__id, 'date', e.target.value)} className="h-9" />
+                <Label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Type</Label>
+                <Select value={entry.entry_type} onValueChange={(v) => updateEntry(entry.__id, 'entry_type', v as EntryType)}>
+                  <SelectTrigger className="h-8 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="time">Time</SelectItem>
+                    <SelectItem value="expense">Expense</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Type</Label>
-                <div className="flex items-center gap-2 h-9">
-                  <span className={`text-xs ${isTime ? 'text-foreground' : 'text-muted-foreground'}`}>Time</span>
-                  <Switch 
-                    checked={!isTime} 
-                    onCheckedChange={(c) => updateEntry(entry.__id, 'entry_type', c ? 'expense' : 'time')} 
-                  />
-                  <span className={`text-xs ${!isTime ? 'text-foreground' : 'text-muted-foreground'}`}>Expense</span>
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">{isTime ? 'Hours' : 'Amount ($)'}</Label>
+                <Label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">{isTime ? 'Hours' : 'Amount ($)'}</Label>
                 {isTime ? (
                   <Input 
                     type="number" step="0.1" 
                     value={entry.predicted_time || ''} 
                     onChange={e => updateEntry(entry.__id, 'predicted_time', parseFloat(e.target.value))} 
-                    className="h-9" 
+                    className="h-8 text-sm font-medium" 
                   />
                 ) : (
                   <Input 
                     type="number" step="0.01" 
                     value={entry.amount_charged || ''} 
                     onChange={e => updateEntry(entry.__id, 'amount_charged', parseFloat(e.target.value))} 
-                    className="h-9" 
+                    className="h-8 text-sm font-medium" 
                   />
                 )}
               </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Description</Label>
-              <Textarea 
-                value={entry.description || ''} 
-                onChange={e => updateEntry(entry.__id, 'description', e.target.value)} 
-                className="min-h-[80px] resize-y text-sm"
-              />
+              {isTime && (
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Rate</Label>
+                  <Input 
+                    type="number" 
+                    value={entry.billing_rate || ''} 
+                    onChange={e => updateEntry(entry.__id, 'billing_rate', parseFloat(e.target.value))} 
+                    className="h-8 text-sm" 
+                  />
+                </div>
+              )}
             </div>
 
             {entry.documents && entry.documents.length > 0 && (
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 pt-2">
                 {entry.documents.map((doc, idx) => (
-                  <Badge key={idx} variant="secondary" className="text-xs font-normal max-w-xs truncate bg-secondary/50">
-                    <Mail className="w-3 h-3 mr-1 inline" />
-                    {doc.subject || 'Email'}
+                  <Badge key={idx} variant="outline" className="text-xs font-normal max-w-xs truncate bg-slate-50 border-border/60 text-muted-foreground py-0.5 px-2">
+                    <Mail className="w-3 h-3 mr-1.5 inline opacity-70" />
+                    {doc.subject || 'Email Reference'}
                   </Badge>
                 ))}
               </div>
             )}
           </div>
 
-          <div className="flex md:flex-col items-center justify-between md:justify-start gap-4 md:w-32 border-t md:border-t-0 md:border-l border-border/50 pt-4 md:pt-0 md:pl-6">
-            <div className="text-right w-full">
-              <div className="text-xs text-muted-foreground mb-1">Total</div>
-              <div className="text-lg font-semibold text-primary">{formatCurrency(entry.amount_charged || 0)}</div>
-              {isTime && <div className="text-xs text-muted-foreground mt-1">@ {formatCurrency(entry.billing_rate || 0)}/hr</div>}
+          <div className="bg-slate-50 border-t md:border-t-0 md:border-l border-border/60 p-5 flex flex-row md:flex-col items-center justify-between min-w-[140px]">
+            <div className="text-left md:text-right w-full">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">Total</div>
+              <div className="text-lg font-semibold text-foreground">{formatCurrency(entry.amount_charged || 0)}</div>
             </div>
-            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive shrink-0 md:mt-auto" onClick={() => deleteEntry(entry.__id)}>
+            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0 md:mt-auto opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity" onClick={() => deleteEntry(entry.__id)}>
               <Trash2 className="w-4 h-4" />
             </Button>
           </div>
