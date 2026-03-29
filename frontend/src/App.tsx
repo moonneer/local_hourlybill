@@ -122,8 +122,8 @@ function ProfileMenu() {
 function Header() {
   const [location] = useLocation();
   let title = "Time Entries";
-  if (location.startsWith("/query")) title = "Query Builder";
-  else if (location.startsWith("/pdf")) title = "PDF Generator";
+  if (location.startsWith("/query")) title = "Matter Setup";
+  else if (location.startsWith("/pdf")) title = "Invoice Generator";
   else if (location.startsWith("/login")) title = "Sign In";
 
   return (

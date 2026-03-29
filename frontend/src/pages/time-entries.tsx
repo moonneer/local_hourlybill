@@ -177,7 +177,7 @@ export default function TimeEntriesPage() {
         <div className="flex items-center gap-3 w-full sm:w-auto">
           <Select value={selectedQuery} onValueChange={handleQueryChange}>
             <SelectTrigger className="w-[280px] bg-background">
-              <SelectValue placeholder="Select a query to edit" />
+              <SelectValue placeholder="Select a matter to edit" />
             </SelectTrigger>
             <SelectContent>
               {queriesData?.queries?.map(q => (

@@ -115,7 +115,7 @@ export default function PdfPage() {
         <div className="flex items-center gap-3 w-full sm:w-auto">
           <Select value={selectedQuery} onValueChange={handleQueryChange}>
             <SelectTrigger className="w-[280px] bg-background">
-              <SelectValue placeholder="Select a query to generate PDF" />
+              <SelectValue placeholder="Select a matter to generate invoice" />
             </SelectTrigger>
             <SelectContent>
               {queriesData?.queries?.map(q => (
@@ -193,7 +193,7 @@ export default function PdfPage() {
         <div className="lg:col-span-2">
           {!selectedQuery ? (
             <div className="h-[600px] flex items-center justify-center border-2 border-dashed border-border/50 rounded-xl bg-card/20 text-muted-foreground">
-              Select a query to preview the invoice
+              Select a matter to preview the invoice
             </div>
           ) : isLoadingEntries || isLoadingInputs ? (
             <Skeleton className="h-[800px] w-full rounded-xl" />

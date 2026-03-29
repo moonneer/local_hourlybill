@@ -1,5 +1,6 @@
-import { FileText, Search, FileDown, Circle } from "lucide-react";
+import { FileText, Briefcase, FileDown, Circle } from "lucide-react";
 import { Link, useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import {
   Sidebar,
   SidebarContent,
@@ -16,9 +17,31 @@ import { Badge } from "@/components/ui/badge";
 
 const navItems = [
   { title: "Time Entries", url: "/", icon: FileText },
-  { title: "Query Builder", url: "/query", icon: Search },
-  { title: "PDF Generator", url: "/pdf", icon: FileDown },
+  { title: "Matter Setup", url: "/query", icon: Briefcase },
+  { title: "Invoice Generator", url: "/pdf", icon: FileDown },
 ];
+
+function LocalModeBadge() {
+  const { data } = useQuery<{ user: unknown | null }>({
+    queryKey: ["/api/me"],
+    retry: false,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const isLocalMode = data !== undefined && data.user === null;
+  if (!isLocalMode) return null;
+
+  return (
+    <div className="flex justify-center">
+      <Badge
+        variant="outline"
+        className="text-xs text-muted-foreground/70 border-border/50 bg-muted/20 px-3 py-1 font-medium"
+      >
+        Local Mode
+      </Badge>
+    </div>
+  );
+}
 
 export function AppSidebar() {
   const [location] = useLocation();
@@ -43,20 +66,24 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu className="gap-1.5">
               {navItems.map((item) => {
-                const isActive = location === item.url || (item.url !== "/" && location.startsWith(item.url));
+                const isActive =
+                  location === item.url ||
+                  (item.url !== "/" && location.startsWith(item.url));
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton
                       asChild
                       isActive={isActive}
                       className={`h-10 px-3 rounded-md transition-colors ${
-                        isActive 
-                          ? "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary" 
+                        isActive
+                          ? "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
                           : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                       }`}
                     >
                       <Link href={item.url} className="flex items-center gap-3 w-full">
-                        <item.icon className={`w-4 h-4 ${isActive ? "text-primary" : "text-muted-foreground"}`} />
+                        <item.icon
+                          className={`w-4 h-4 ${isActive ? "text-primary" : "text-muted-foreground"}`}
+                        />
                         <span className="font-medium">{item.title}</span>
                       </Link>
                     </SidebarMenuButton>
@@ -68,11 +95,7 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter className="p-4 border-t border-border/50">
-        <div className="flex justify-center">
-          <Badge variant="outline" className="text-xs text-muted-foreground/70 border-border/50 bg-muted/20 px-3 py-1 font-medium">
-            Local Mode
-          </Badge>
-        </div>
+        <LocalModeBadge />
       </SidebarFooter>
     </Sidebar>
   );

@@ -102,7 +102,7 @@ export default function QueryBuilderPage() {
       return res.json();
     },
     onSuccess: () => {
-      toast({ title: "Saved successfully", description: "Query has been saved." });
+      toast({ title: "Saved successfully", description: "Matter has been saved." });
       queryClient.invalidateQueries({ queryKey: ["/api/queries"] });
       queryClient.invalidateQueries({ queryKey: ["/api/query-json"] });
       queryClient.invalidateQueries({ queryKey: ["/api/inputs"] });
@@ -137,9 +137,9 @@ export default function QueryBuilderPage() {
           es.close();
           setPipelineState(parsed.data.success ? "complete" : "error");
           if (parsed.data.success) {
-            toast({ title: "Pipeline completed", description: "Ready to edit time entries." });
+            toast({ title: "Analysis complete", description: "Time entries are ready to review." });
           } else {
-            toast({ title: "Pipeline failed", description: parsed.data.error || "Unknown error", variant: "destructive" });
+            toast({ title: "Analysis failed", description: parsed.data.error || "Unknown error", variant: "destructive" });
           }
         }
       } catch (err) {
@@ -150,7 +150,7 @@ export default function QueryBuilderPage() {
     es.onerror = (err) => {
       es.close();
       setPipelineState("error");
-      toast({ title: "Pipeline connection lost", description: "Connection to server was lost.", variant: "destructive" });
+      toast({ title: "Connection lost", description: "Could not reach the analysis server.", variant: "destructive" });
     };
   };
 
@@ -160,7 +160,7 @@ export default function QueryBuilderPage() {
       eventSourceRef.current = null;
     }
     setPipelineState("error");
-    setPipelineLogs(prev => [...prev, { stream: "stderr", text: "Pipeline stopped by user." }]);
+    setPipelineLogs(prev => [...prev, { stream: "stderr", text: "Analysis stopped by user." }]);
   };
 
   const updateForm = (field: keyof QueryEntry, value: any) => {
@@ -211,7 +211,7 @@ export default function QueryBuilderPage() {
         <div className="flex items-center gap-3 w-full sm:w-auto">
           <Select value={isNew ? "" : selectedQuery} onValueChange={handleQueryChange}>
             <SelectTrigger className="w-[280px] bg-background">
-              <SelectValue placeholder="Select a query to edit" />
+              <SelectValue placeholder="Select a matter to edit" />
             </SelectTrigger>
             <SelectContent>
               {queriesData?.queries?.map(q => (
@@ -240,7 +240,7 @@ export default function QueryBuilderPage() {
               ) : (
                 <Button variant="default" className="bg-primary hover:bg-primary/90 text-primary-foreground" onClick={runPipeline}>
                   <Play className="w-4 h-4 mr-2" />
-                  Run Pipeline
+                  Run Analysis
                 </Button>
               )}
             </>
@@ -262,13 +262,13 @@ export default function QueryBuilderPage() {
           {/* Main Info */}
           <Card className="border-border/50 shadow-sm">
             <CardHeader className="bg-muted/10 pb-4">
-              <CardTitle>Query Details</CardTitle>
-              <CardDescription>Basic information for this billing query</CardDescription>
+              <CardTitle>Matter Details</CardTitle>
+              <CardDescription>Basic information for this billing matter</CardDescription>
             </CardHeader>
             <CardContent className="p-6 grid gap-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <Label>Query Name</Label>
+                  <Label>Matter Name</Label>
                   <Input 
                     value={queryName} 
                     onChange={e => setQueryName(e.target.value)} 
@@ -413,7 +413,7 @@ export default function QueryBuilderPage() {
               <CardHeader className="bg-primary/5 pb-4 border-b border-primary/10">
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2">
-                    Pipeline Execution
+                    Email Analysis Progress
                     {pipelineState === "running" && <span className="relative flex h-3 w-3"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span><span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span></span>}
                   </CardTitle>
                   {pipelineState === "complete" && <span className="text-sm text-emerald-500 font-medium">Completed Successfully</span>}
@@ -433,7 +433,7 @@ export default function QueryBuilderPage() {
                     </div>
                   ))}
                   {pipelineLogs.length === 0 && pipelineState === "running" && (
-                    <div className="text-muted-foreground animate-pulse">Connecting to pipeline...</div>
+                    <div className="text-muted-foreground animate-pulse">Connecting to analysis engine...</div>
                   )}
                   <div ref={(el) => { if (el) el.scrollIntoView({ behavior: "smooth" }) }} />
                 </div>
