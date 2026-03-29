@@ -1,0 +1,41 @@
+{
+  "template": {
+    "client_name": "Skylar Newby",
+    "emails": [
+      "user@example.com",
+      "another@example.com"
+    ],
+    "keywords": [
+      "keyword1",
+      "keyword2"
+    ],
+    "exclude_keywords": [],
+    "start": "2024-01-01",
+    "end": "2024-12-31",
+    "matters": {
+      "Example Matter": [
+        "Example",
+        "Keywords",
+        "for help"
+      ]
+    },
+    "billing_rate": 425
+  },
+  "SkylarNewby_test": {
+    "client_name": "Skylar Newby",
+    "emails": [
+      "skywnewby@gmail.com"
+    ],
+    "keywords": [
+      "newby",
+      "energyn",
+      "glyde"
+    ],
+    "start": "2024-03-01",
+    "end": "2024-03-31",
+    "matters": {
+      "Glyde Solar v. Skylar Newby": []
+    },
+    "billing_rate": 425
+  }
+}

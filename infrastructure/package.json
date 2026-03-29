@@ -1,0 +1,11 @@
+{
+  "name": "hourlybill-infrastructure-root",
+  "private": true,
+  "scripts": {
+    "build": "npm run build --prefix cdk",
+    "synth": "node cdk/run-cdk.js synth",
+    "deploy": "node cdk/run-cdk.js deploy --require-approval never",
+    "destroy": "node cdk/run-cdk.js destroy",
+    "cdk": "node cdk/run-cdk.js"
+  }
+}

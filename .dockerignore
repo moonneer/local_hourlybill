@@ -1,0 +1,15 @@
+node_modules
+backend/dist
+backend/node_modules
+.git
+.env
+.env.*
+*.md
+infrastructure
+scripts/__pycache__
+*.pyc
+pixi.lock
+query.json
+inputs.json
+system_senders.json
+clients

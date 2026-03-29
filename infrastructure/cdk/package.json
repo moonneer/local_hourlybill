@@ -1,0 +1,24 @@
+{
+  "name": "hourlybill-infrastructure",
+  "version": "1.0.0",
+  "description": "AWS CDK infrastructure for Hourly Bill v3",
+  "main": "lib/index.js",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "cdk": "cdk",
+    "whoami": "aws sts get-caller-identity --profile hourlybill",
+    "synth": "node run-cdk.js synth",
+    "deploy": "node run-cdk.js deploy --require-approval never",
+    "destroy": "node run-cdk.js destroy"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "aws-cdk": "^2.170.0",
+    "typescript": "~5.3.0"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.170.0",
+    "constructs": "^10.3.0"
+  }
+}

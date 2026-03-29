@@ -1,0 +1,9 @@
+{
+  "blocked_senders": [
+    "efiler@utcourts.gov",
+    "support@greenfiling.com",
+    "ecf-utah@utb.uscourts.gov",
+    "utd_enotice@utd.uscourts.gov"
+  ],
+  "tooltip": "Unable to access document to estimate time"
+}
