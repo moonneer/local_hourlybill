@@ -1,6 +1,6 @@
 /** Repo root (where query.json, clients/, scripts/ live). */
 export declare const ROOT_DIR: string;
-/** Static assets (HTML, JS, CSS). */
+/** Static assets served in production (Vite build output). */
 export declare const STATIC_DIR: string;
 export declare const PORT: number;
 export declare const BACKUP_COUNT = 5;

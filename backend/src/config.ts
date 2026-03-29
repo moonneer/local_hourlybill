@@ -2,10 +2,12 @@ import path from 'path';
 
 /** Repo root (where query.json, clients/, scripts/ live). */
 export const ROOT_DIR = path.resolve(__dirname, '../..');
-/** Static assets (HTML, JS, CSS). */
-export const STATIC_DIR = path.join(ROOT_DIR, 'local_bill_editor');
+/** Static assets served in production (Vite build output). */
+export const STATIC_DIR = process.env.STATIC_DIR
+  ? path.resolve(process.env.STATIC_DIR)
+  : path.join(ROOT_DIR, 'frontend', 'dist');
 
-export const PORT = Number(process.env.PORT || 5000);
+export const PORT = Number(process.env.PORT || 5001);
 export const BACKUP_COUNT = 5;
 export const TIME_ENTRIES_FILENAME = 'time_entries.json';
 export const PARSED_EMAILS_FILENAME = 'parsed_emails.json';
