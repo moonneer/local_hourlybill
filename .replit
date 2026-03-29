@@ -39,5 +39,5 @@ externalPort = 3000
 
 [deployment]
 deploymentTarget = "autoscale"
-run = ["node", "local_bill_editor/server.js"]
-build = ["npm", "run", "build:backend"]
+run = ["node", "backend/dist/server.js"]
+build = ["bash", "-c", "npm run build:backend && npm --prefix frontend install && npm --prefix frontend run build"]
