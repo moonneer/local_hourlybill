@@ -17,3 +17,7 @@ node_modules/
 infrastructure/cdk/dist/
 
 .DS_Store
+
+# Python
+__pycache__/
+*.pyc
