@@ -1,0 +1,117 @@
+Stripe subscription + PDF paywall + profile billing
+
+Product behavior
+
+
+
+
+
+Rest of the app stays usable without a subscription (per your latest direction).
+
+
+
+PDF export is the paywall: clicking Export PDF on frontend/src/pages/pdf-generator.tsx (generatePdf today opens a new tab to /api/generate-pdf) should not open that URL until the user is subscribed.
+
+
+
+
+
+If subscription from /api/me is not active (see below), show a centered modal (use existing Dialog or similar shadcn pattern) that covers most of the viewport (max-w-lg–max-w-2xl, tall content, backdrop blur/scrim). Copy: monthly plan at $100, primary CTA Subscribe (starts Checkout), secondary Manage subscription if partial state, link to full billing page.
+
+
+
+If subscribed, keep current behavior: window.open(apiUrl(...)).
+
+
+
+Free trials can be a later Stripe trial period on the Price or custom logic—no need to implement now.
+
+
+
+Profile: extend ProfileMenu in App.tsx with a Subscription (or Billing) item routing to a new page, e.g. /subscription, same visual language as other pages (Cards, existing typography). Show status, Subscribe / Manage billing (Stripe Customer Portal), and short explanation. Header breadcrumb can use the same pattern as other routes (add location.startsWith("/subscription") title branch in Header).
+
+Backend (Stripe + data model)
+
+
+
+
+
+Dependencies: add stripe to backend/package.json.
+
+
+
+User record in backend/src/services/auth.ts: optional fields such as stripeCustomerId, stripeSubscriptionId, subscriptionStatus (e.g. none | active | trialing | past_due | canceled | incomplete), optionally subscriptionCurrentPeriodEnd (unix or ISO). Extend sanitizeUser / GET /api/me to include a safe subset (e.g. subscription: { status, currentPeriodEnd })—no secrets.
+
+
+
+Endpoints (in backend/src/routes/api.ts, same auth patterns as /api/profile):
+
+
+
+
+
+POST /api/billing/checkout-session — authenticated; creates Stripe Checkout Session (mode: subscription, line_items with STRIPE_PRICE_ID for $100/mo product created in Stripe Dashboard); success_url / cancel_url pointing to your app (e.g. /subscription?checkout=success and /pdf?... or /subscription; use APP_PUBLIC_URL env for absolute URLs).
+
+
+
+POST /api/billing/portal-session — authenticated; opens Billing Portal for stripeCustomerId.
+
+
+
+POST /api/stripe/webhook — no session auth; verify Stripe-Signature with raw body; handle at least checkout.session.completed (link customer + subscription to user—customer metadata should include userId), customer.subscription.updated, customer.subscription.deleted; upsert Dynamo user payment fields via new helpers in auth.ts (e.g. updateUserSubscription).
+
+
+
+Critical: GET /api/generate-pdf must require an active (or trialing, if you allow) subscription after resolving the user—return 402/403 JSON if not allowed so opening the URL in a new tab cannot bypass the UI. Reuse the same status check as the frontend.
+
+Raw body for webhooks
+
+
+
+
+
+backend/src/server.ts currently passes all /api/* into handleApi which reads bodies as UTF-8 strings. For /api/stripe/webhook, read the request as a Buffer (or pass encoding: undefined) and branch to a dedicated webhook handler before any JSON parsing, so signature verification works.
+
+Frontend wiring
+
+
+
+
+
+Extend use-auth / UserInfo with optional subscription from /api/me.
+
+
+
+Subscription page (new file under frontend/src/pages/): fetch/me-driven UI; buttons call apiRequest to checkout/portal URLs and window.location.href = url.
+
+
+
+PDF page: useCurrentUser() (or useQuery on /api/me); wrap Export PDF onClick—if not subscribed, setSubscribeModalOpen(true); else generatePdf(). Optional: ?checkout=success on return refetches /api/me and toasts success.
+
+
+
+Types: ensure login/signup responses remain unchanged except you may omit sessionToken later (out of scope unless you want it in this pass).
+
+Infra / secrets
+
+
+
+
+
+New Secrets Manager secret (mirror GmailGeminiSecret): e.g. hourlybill/stripe JSON with STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET; grant BackendRole GetSecretValue on it.
+
+
+
+AppRunnerBackend: inject secret ARN + plain env STRIPE_PRICE_ID, APP_PUBLIC_URL (your App Runner or custom domain URL, no trailing issues). Application startup (existing pattern for Gmail secret): load JSON into process.env if not already set.
+
+
+
+Stripe Dashboard: create Product + $100/month recurring Price; webhook endpoint https://<your-domain>/api/stripe/webhook with events above.
+
+Minor fix (login page)
+
+
+
+
+
+app-sidebar.tsx: the footer Sign in link shows whenever !user, including on /login. Hide the footer block when location.startsWith("/login") (or when pathname is /login) so the redundant bottom-left control disappears.
