@@ -45,13 +45,20 @@ function authAvailable() {
     return !!(USERS_TABLE && SESSIONS_TABLE);
 }
 exports.authAvailable = authAvailable;
-async function createUser(email, password) {
+async function createUser(email, password, firstName, lastName) {
     const client = getClient();
     if (!client)
         throw new Error('Auth not configured');
     const emailNorm = String(email).trim().toLowerCase();
+    const fn = String(firstName ?? '').trim();
+    const ln = String(lastName ?? '').trim();
     if (!emailNorm || !password || password.length < 8) {
         const err = new Error('Email and password (min 8 characters) are required.');
+        err.statusCode = 400;
+        throw err;
+    }
+    if (!fn || !ln) {
+        const err = new Error('First name and last name are required.');
         err.statusCode = 400;
         throw err;
     }
@@ -64,11 +71,15 @@ async function createUser(email, password) {
     const userId = (0, crypto_1.randomBytes)(16).toString('hex');
     const passwordHash = await bcrypt.hash(password, 10);
     const createdAt = new Date().toISOString();
+    const displayName = `${fn} ${ln}`.trim();
     const record = {
         userId,
         email: emailNorm,
         passwordHash,
         createdAt,
+        firstName: fn,
+        lastName: ln,
+        displayName,
     };
     await client.send(new lib_dynamodb_1.PutCommand({
         TableName: USERS_TABLE,
@@ -123,6 +134,8 @@ function sanitizeUser(u) {
     return {
         userId: u.userId,
         email: u.email,
+        firstName: u.firstName,
+        lastName: u.lastName,
         displayName: u.displayName,
         avatarUrl: u.avatarUrl,
     };

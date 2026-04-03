@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sign in – Hourly Bill</title>
+    <link rel="stylesheet" href="styles.css" />
+    <style>
+      .login-page { max-width: 400px; margin: 80px auto; padding: 0 24px; }
+      .login-page h1 { margin-bottom: 8px; }
+      .login-page .subtle { margin-bottom: 24px; }
+      .login-form { display: flex; flex-direction: column; gap: 16px; }
+      .login-form label { display: flex; flex-direction: column; gap: 6px; font-size: 0.9rem; }
+      .login-form input { padding: 10px 14px; border-radius: 8px; border: 1px solid #b6aea2; }
+      .login-form .actions { display: flex; gap: 12px; align-items: center; margin-top: 8px; }
+      .login-form .toggle-mode { font-size: 0.9rem; color: #5d584f; background: none; border: none; cursor: pointer; text-decoration: underline; }
+      .login-form .toggle-mode:hover { color: #2c2721; }
+      .login-error { color: #9b2c2c; font-size: 0.9rem; }
+    </style>
+  </head>
+  <body>
+    <main class="app login-page">
+      <div>
+        <p class="eyebrow">Hourly Bill</p>
+        <h1 id="login-title">Sign in</h1>
+        <p class="subtle" id="login-subtitle">Enter your email and password to continue.</p>
+      </div>
+      <form id="login-form" class="login-form">
+        <label>
+          Email
+          <input type="email" id="email" required autocomplete="email" />
+        </label>
+        <label>
+          Password
+          <input type="password" id="password" required autocomplete="current-password" minlength="8" />
+        </label>
+        <p id="login-error" class="login-error" style="display:none"></p>
+        <div class="actions">
+          <button type="submit" id="submit-btn" class="button-link primary">Sign in</button>
+          <button type="button" id="toggle-mode" class="toggle-mode">Create account</button>
+        </div>
+        <p class="subtle" style="margin-top:16px">
+          <a href="index.html" class="toggle-mode">Continue without signing in</a>
+          (if auth is not configured)
+        </p>
+      </form>
+    </main>
+    <script src="login.js"></script>
+  </body>
+</html>

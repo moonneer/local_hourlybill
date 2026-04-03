@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Bill PDF</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div id="profile-bar-container" class="no-print"></div>
+    <main class="app">
+      <header class="app-header no-print">
+        <div>
+          <p class="eyebrow">Bill Editor</p>
+          <h1>Bill PDF</h1>
+          <p class="subtle">Preview the invoice and print to PDF.</p>
+        </div>
+        <div class="header-actions">
+          <a class="button-link" href="index.html">Time entries</a>
+          <a class="button-link" href="query.html">Edit query</a>
+          <label>
+            Query
+            <select id="query-select"></select>
+          </label>
+          <button id="reload" type="button">Reload</button>
+          <button id="generate" type="button" class="primary">Generate PDF</button>
+          <span id="status" class="status"></span>
+        </div>
+      </header>
+
+      <section class="panel no-print">
+        <h2>Firm info</h2>
+        <div class="grid two">
+          <label>
+            User
+            <input id="user" type="text" />
+          </label>
+          <label>
+            Law firm phone
+            <input id="law-firm-phone" type="text" placeholder="(555) 555-5555" />
+          </label>
+          <label>
+            Law firm website
+            <input id="law-firm-website" type="text" placeholder="https://example.com" />
+          </label>
+          <label>
+            Law firm logo path
+            <input id="law-firm-logo-path" type="text" placeholder="uploads/logo.png" />
+          </label>
+          <label>
+            Upload logo (stores under `local_bill_editor/uploads/`)
+            <input id="logo-file" type="file" accept="image/png,image/jpeg" />
+          </label>
+        </div>
+
+        <h3 class="section-title">User address</h3>
+        <div class="grid two">
+          <label>
+            Address line 1
+            <input id="user-address-line1" type="text" />
+          </label>
+          <label>
+            Address line 2
+            <input id="user-address-line2" type="text" />
+          </label>
+          <label>
+            City
+            <input id="user-city" type="text" />
+          </label>
+          <label>
+            State
+            <input id="user-state" type="text" />
+          </label>
+          <label>
+            Postal code
+            <input id="user-postal-code" type="text" />
+          </label>
+          <label>
+            Country
+            <input id="user-country" type="text" />
+          </label>
+        </div>
+      </section>
+
+      <section class="panel invoice-panel">
+        <div id="invoice" class="invoice"></div>
+      </section>
+    </main>
+    <script src="auth.js"></script>
+    <script src="pdf.js"></script>
+  </body>
+</html>

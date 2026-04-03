@@ -1,0 +1,23 @@
+# pixi environments
+.pixi/*
+!.pixi/config.toml
+
+
+.env
+scripts/.env
+clients/*
+
+# local bill editor uploads (logos)
+local_bill_editor/uploads/*
+
+# node dependencies (playwright)
+node_modules/
+
+# CDK TypeScript emit (sources stay under lib/)
+infrastructure/cdk/dist/
+
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc

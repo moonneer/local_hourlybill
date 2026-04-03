@@ -1,0 +1,629 @@
+{
+ "Description": "Hourly Bill v3 - MVP stack",
+ "Resources": {
+  "DataBucketBD860FE1": {
+   "Type": "AWS::S3::Bucket",
+   "Properties": {
+    "BucketEncryption": {
+     "ServerSideEncryptionConfiguration": [
+      {
+       "ServerSideEncryptionByDefault": {
+        "SSEAlgorithm": "AES256"
+       }
+      }
+     ]
+    },
+    "BucketName": "hourlybill-data-873057437151",
+    "PublicAccessBlockConfiguration": {
+     "BlockPublicAcls": true,
+     "BlockPublicPolicy": true,
+     "IgnorePublicAcls": true,
+     "RestrictPublicBuckets": true
+    },
+    "Tags": [
+     {
+      "Key": "Application",
+      "Value": "HourlyBill"
+     }
+    ],
+    "VersioningConfiguration": {
+     "Status": "Enabled"
+    }
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain",
+   "Metadata": {
+    "aws:cdk:path": "HourlyBillStack/DataBucket/Bucket/Resource"
+   }
+  },
+  "GmailGeminiSecret71508892": {
+   "Type": "AWS::SecretsManager::Secret",
+   "Properties": {
+    "Description": "Gmail API and Google Gemini API credentials for Hourly Bill pipeline",
+    "Name": "hourlybill/gmail-gemini",
+    "SecretString": "{\n  \"GOOGLE_CLIENT_ID\": \"\",\n  \"GOOGLE_CLIENT_SECRET\": \"\",\n  \"GOOGLE_REFRESH_TOKEN\": \"\",\n  \"GOOGLE_ACCESS_TOKEN\": \"\",\n  \"GOOGLE_TOKEN_EXPIRES_AT\": \"\",\n  \"GOOGLE_GENAI_API_KEY\": \"\"\n}",
+    "Tags": [
+     {
+      "Key": "Application",
+      "Value": "HourlyBill"
+     }
+    ]
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "HourlyBillStack/GmailGeminiSecret/Secret/Resource"
+   }
+  },
+  "AuthDatabaseUsersTableEBE2F525": {
+   "Type": "AWS::DynamoDB::Table",
+   "Properties": {
+    "AttributeDefinitions": [
+     {
+      "AttributeName": "userId",
+      "AttributeType": "S"
+     },
+     {
+      "AttributeName": "email",
+      "AttributeType": "S"
+     }
+    ],
+    "BillingMode": "PAY_PER_REQUEST",
+    "GlobalSecondaryIndexes": [
+     {
+      "IndexName": "by-email",
+      "KeySchema": [
+       {
+        "AttributeName": "email",
+        "KeyType": "HASH"
+       }
+      ],
+      "Projection": {
+       "ProjectionType": "ALL"
+      }
+     }
+    ],
+    "KeySchema": [
+     {
+      "AttributeName": "userId",
+      "KeyType": "HASH"
+     }
+    ],
+    "TableName": "hourlybill-users",
+    "Tags": [
+     {
+      "Key": "Application",
+      "Value": "HourlyBill"
+     }
+    ]
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "HourlyBillStack/AuthDatabase/UsersTable/Resource"
+   }
+  },
+  "AuthDatabaseSessionsTableE01A13CE": {
+   "Type": "AWS::DynamoDB::Table",
+   "Properties": {
+    "AttributeDefinitions": [
+     {
+      "AttributeName": "sessionToken",
+      "AttributeType": "S"
+     }
+    ],
+    "BillingMode": "PAY_PER_REQUEST",
+    "KeySchema": [
+     {
+      "AttributeName": "sessionToken",
+      "KeyType": "HASH"
+     }
+    ],
+    "TableName": "hourlybill-sessions",
+    "Tags": [
+     {
+      "Key": "Application",
+      "Value": "HourlyBill"
+     }
+    ],
+    "TimeToLiveSpecification": {
+     "AttributeName": "expiresAt",
+     "Enabled": true
+    }
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "HourlyBillStack/AuthDatabase/SessionsTable/Resource"
+   }
+  },
+  "BackendRoleE132CF9C": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "tasks.apprunner.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "Description": "Runtime role for Hourly Bill App Runner service",
+    "RoleName": "hourlybill-backend-role",
+    "Tags": [
+     {
+      "Key": "Application",
+      "Value": "HourlyBill"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "HourlyBillStack/BackendRole/Role/Resource"
+   }
+  },
+  "BackendRoleDefaultPolicy08BE9944": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:DeleteObject",
+        "s3:ListBucket"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "DataBucketBD860FE1",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "DataBucketBD860FE1",
+             "Arn"
+            ]
+           },
+           "/*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": "secretsmanager:GetSecretValue",
+       "Effect": "Allow",
+       "Resource": {
+        "Ref": "GmailGeminiSecret71508892"
+       }
+      },
+      {
+       "Action": [
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:Query",
+        "dynamodb:BatchGetItem"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "AuthDatabaseUsersTableEBE2F525",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "AuthDatabaseUsersTableEBE2F525",
+             "Arn"
+            ]
+           },
+           "/index/*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": [
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:Query",
+        "dynamodb:BatchGetItem"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::GetAtt": [
+         "AuthDatabaseSessionsTableE01A13CE",
+         "Arn"
+        ]
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "BackendRoleDefaultPolicy08BE9944",
+    "Roles": [
+     {
+      "Ref": "BackendRoleE132CF9C"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "HourlyBillStack/BackendRole/Role/DefaultPolicy/Resource"
+   }
+  },
+  "AppRunnerBackendAppRunnerEcrAccess5749FEA0": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "build.apprunner.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AWSAppRunnerServicePolicyForECRAccess"
+       ]
+      ]
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "HourlyBillStack/AppRunnerBackend/AppRunnerEcrAccess/Resource"
+   }
+  },
+  "AppRunnerBackendAppRunnerEcrAccessDefaultPolicyA4A60270": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:BatchGetImage"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::Join": [
+         "",
+         [
+          "arn:",
+          {
+           "Ref": "AWS::Partition"
+          },
+          ":ecr:us-west-2:873057437151:repository/cdk-hnb659fds-container-assets-873057437151-us-west-2"
+         ]
+        ]
+       }
+      },
+      {
+       "Action": "ecr:GetAuthorizationToken",
+       "Effect": "Allow",
+       "Resource": "*"
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "AppRunnerBackendAppRunnerEcrAccessDefaultPolicyA4A60270",
+    "Roles": [
+     {
+      "Ref": "AppRunnerBackendAppRunnerEcrAccess5749FEA0"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "HourlyBillStack/AppRunnerBackend/AppRunnerEcrAccess/DefaultPolicy/Resource"
+   }
+  },
+  "AppRunnerBackendService25A63F2F": {
+   "Type": "AWS::AppRunner::Service",
+   "Properties": {
+    "HealthCheckConfiguration": {
+     "HealthyThreshold": 1,
+     "Interval": 10,
+     "Path": "/login.html",
+     "Protocol": "HTTP",
+     "Timeout": 5,
+     "UnhealthyThreshold": 5
+    },
+    "InstanceConfiguration": {
+     "Cpu": "4096",
+     "InstanceRoleArn": {
+      "Fn::GetAtt": [
+       "BackendRoleE132CF9C",
+       "Arn"
+      ]
+     },
+     "Memory": "8192"
+    },
+    "ServiceName": "hourlybill-backend",
+    "SourceConfiguration": {
+     "AuthenticationConfiguration": {
+      "AccessRoleArn": {
+       "Fn::GetAtt": [
+        "AppRunnerBackendAppRunnerEcrAccess5749FEA0",
+        "Arn"
+       ]
+      }
+     },
+     "AutoDeploymentsEnabled": true,
+     "ImageRepository": {
+      "ImageConfiguration": {
+       "Port": "8080",
+       "RuntimeEnvironmentSecrets": [
+        {
+         "Name": "HOURLYBILL_GMAIL_GEMINI_SECRET",
+         "Value": {
+          "Ref": "GmailGeminiSecret71508892"
+         }
+        }
+       ],
+       "RuntimeEnvironmentVariables": [
+        {
+         "Name": "NODE_ENV",
+         "Value": "production"
+        },
+        {
+         "Name": "PORT",
+         "Value": "8080"
+        },
+        {
+         "Name": "S3_BUCKET",
+         "Value": {
+          "Ref": "DataBucketBD860FE1"
+         }
+        },
+        {
+         "Name": "AWS_REGION",
+         "Value": "us-west-2"
+        },
+        {
+         "Name": "USERS_TABLE",
+         "Value": {
+          "Ref": "AuthDatabaseUsersTableEBE2F525"
+         }
+        },
+        {
+         "Name": "SESSIONS_TABLE",
+         "Value": {
+          "Ref": "AuthDatabaseSessionsTableE01A13CE"
+         }
+        }
+       ]
+      },
+      "ImageIdentifier": {
+       "Fn::Sub": "873057437151.dkr.ecr.us-west-2.${AWS::URLSuffix}/cdk-hnb659fds-container-assets-873057437151-us-west-2:804e80eefeafcac89ba246d8c41267dedce7b3e61ff0f65c2a1344e183ed5efb"
+      },
+      "ImageRepositoryType": "ECR"
+     }
+    },
+    "Tags": [
+     {
+      "Key": "Application",
+      "Value": "HourlyBill"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "HourlyBillStack/AppRunnerBackend/Service"
+   }
+  },
+  "DevelopersGroupB4CBAD2C": {
+   "Type": "AWS::IAM::Group",
+   "Properties": {
+    "GroupName": "hourlybill-developers"
+   },
+   "Metadata": {
+    "aws:cdk:path": "HourlyBillStack/Developers/Group/Resource"
+   }
+  },
+  "DevelopersGroupDefaultPolicy1AFF215C": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "Groups": [
+     {
+      "Ref": "DevelopersGroupB4CBAD2C"
+     }
+    ],
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Resource": "arn:aws:iam::873057437151:role/cdk-*",
+       "Sid": "AssumeCDKBootstrapRoles"
+      },
+      {
+       "Action": "cloudformation:DescribeStacks",
+       "Effect": "Allow",
+       "Resource": "*",
+       "Sid": "DescribeStacks"
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "DevelopersGroupDefaultPolicy1AFF215C"
+   },
+   "Metadata": {
+    "aws:cdk:path": "HourlyBillStack/Developers/Group/DefaultPolicy/Resource"
+   }
+  },
+  "DevelopersUsermounir059C6A32": {
+   "Type": "AWS::IAM::User",
+   "Properties": {
+    "Groups": [
+     {
+      "Ref": "DevelopersGroupB4CBAD2C"
+     }
+    ],
+    "Tags": [
+     {
+      "Key": "Application",
+      "Value": "HourlyBill"
+     }
+    ],
+    "UserName": "hourlybill-mounir"
+   },
+   "Metadata": {
+    "aws:cdk:path": "HourlyBillStack/Developers/User-mounir/Resource"
+   }
+  },
+  "DevelopersUsermoontest3BE72681": {
+   "Type": "AWS::IAM::User",
+   "Properties": {
+    "Groups": [
+     {
+      "Ref": "DevelopersGroupB4CBAD2C"
+     }
+    ],
+    "Tags": [
+     {
+      "Key": "Application",
+      "Value": "HourlyBill"
+     }
+    ],
+    "UserName": "hourlybill-moon-test"
+   },
+   "Metadata": {
+    "aws:cdk:path": "HourlyBillStack/Developers/User-moon-test/Resource"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/y2OQU/DMAyFf8vuqRntxJ2BhDiB2nGe3NRUWZukspNNVZT/jtJyet97z5ZdQ928wPGAD6n0MFWz6SF1AfWk8CHXJA2kc9QTBfX263bKSkgzBbHocCSG1G2+TOyU1bA6tH7oIV2wn6lUG2Rl0EJq/Z5t+u1no9di/+mDfVyK3+FHiIsrmhVpvqIIBYF3ryfiT4sjvZakdNDS4sUEz+sZhRQuC0fniGH7ju9GU1YtiY+sSW17XcDRuLHc+IphiSEr5weCmzzd6xM8N3A83MSYiqMLxhK0u/4B/VJIwz0BAAA="
+   },
+   "Metadata": {
+    "aws:cdk:path": "HourlyBillStack/CDKMetadata/Default"
+   }
+  }
+ },
+ "Outputs": {
+  "DataBucketName": {
+   "Description": "S3 bucket for app data (user data under {user_id}/)",
+   "Value": {
+    "Ref": "DataBucketBD860FE1"
+   },
+   "Export": {
+    "Name": "HourlyBill-DataBucketName"
+   }
+  },
+  "GmailGeminiSecretArn": {
+   "Description": "Secrets Manager ARN for Gmail/Gemini credentials",
+   "Value": {
+    "Ref": "GmailGeminiSecret71508892"
+   },
+   "Export": {
+    "Name": "HourlyBill-GmailGeminiSecretArn"
+   }
+  },
+  "ServiceUrl": {
+   "Description": "App Runner service URL (HTTPS; backend + static app)",
+   "Value": {
+    "Fn::GetAtt": [
+     "AppRunnerBackendService25A63F2F",
+     "ServiceUrl"
+    ]
+   },
+   "Export": {
+    "Name": "HourlyBill-ServiceUrl"
+   }
+  },
+  "BackendImageUri": {
+   "Description": "Backend image URI (built on cdk deploy)",
+   "Value": {
+    "Fn::Sub": "873057437151.dkr.ecr.us-west-2.${AWS::URLSuffix}/cdk-hnb659fds-container-assets-873057437151-us-west-2:804e80eefeafcac89ba246d8c41267dedce7b3e61ff0f65c2a1344e183ed5efb"
+   },
+   "Export": {
+    "Name": "HourlyBill-BackendImageUri"
+   }
+  },
+  "UsersTableName": {
+   "Description": "DynamoDB table for auth users",
+   "Value": {
+    "Ref": "AuthDatabaseUsersTableEBE2F525"
+   },
+   "Export": {
+    "Name": "HourlyBill-UsersTableName"
+   }
+  },
+  "SessionsTableName": {
+   "Description": "DynamoDB table for auth sessions",
+   "Value": {
+    "Ref": "AuthDatabaseSessionsTableE01A13CE"
+   },
+   "Export": {
+    "Name": "HourlyBill-SessionsTableName"
+   }
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}

@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Time Entries Editor</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div id="profile-bar-container"></div>
+    <main class="app">
+      <header class="app-header">
+        <div>
+          <p class="eyebrow">Bill Editor</p>
+          <h1>Time entries</h1>
+          <p class="subtle">Load a bill, tweak entries, and save a new version.</p>
+        </div>
+        <div class="header-actions">
+          <a class="button-link" href="query.html">Edit query</a>
+          <a id="pdf-link" class="button-link" href="pdf.html">Generate PDF</a>
+          <button id="import-bill4time" type="button">Import Bill4Time</button>
+          <input id="bill4time-file" type="file" accept=".txt,text/plain" hidden />
+          <label>
+            Query
+            <select id="query-select"></select>
+          </label>
+          <button id="reload-button" type="button">Reload</button>
+          <button id="save-button" type="button" class="primary">Save new version</button>
+          <span id="save-status" class="status"></span>
+        </div>
+      </header>
+
+      <section class="panel">
+        <h2>Bill info</h2>
+        <div class="grid two">
+          <label>
+            Client name
+            <input id="client-name" type="text" />
+          </label>
+          <label>
+            User name
+            <input id="user-name" type="text" />
+          </label>
+          <label>
+            Billing rate (USD/hr)
+            <input id="billing-rate" type="number" step="1" />
+          </label>
+          <label>
+            Timezone
+            <input id="timezone" type="text" />
+          </label>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Entries</h2>
+          <button id="add-entry" type="button">Add entry</button>
+        </div>
+        <datalist id="matter-list"></datalist>
+        <div id="entries"></div>
+      </section>
+    </main>
+    <script src="auth.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

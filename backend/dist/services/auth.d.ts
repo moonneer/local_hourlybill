@@ -4,6 +4,8 @@ export interface UserRecord {
     email: string;
     passwordHash: string;
     createdAt: string;
+    firstName?: string;
+    lastName?: string;
     displayName?: string;
     avatarUrl?: string;
 }
@@ -12,7 +14,7 @@ export interface SessionRecord {
     userId: string;
     expiresAt: number;
 }
-export declare function createUser(email: string, password: string): Promise<UserRecord>;
+export declare function createUser(email: string, password: string, firstName: string, lastName: string): Promise<UserRecord>;
 export declare function getUserById(userId: string): Promise<UserRecord | null>;
 export declare function getUserByEmail(email: string): Promise<UserRecord | null>;
 export declare function updateUserProfile(userId: string, updates: {
@@ -22,6 +24,8 @@ export declare function updateUserProfile(userId: string, updates: {
 export declare function sanitizeUser(u: UserRecord): {
     userId: string;
     email: string;
+    firstName?: string;
+    lastName?: string;
     displayName?: string;
     avatarUrl?: string;
 };

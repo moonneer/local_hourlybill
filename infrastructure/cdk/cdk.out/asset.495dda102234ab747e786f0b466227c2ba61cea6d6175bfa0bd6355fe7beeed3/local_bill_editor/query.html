@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Query Editor</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div id="profile-bar-container"></div>
+    <main class="app">
+      <header class="app-header">
+        <div>
+          <p class="eyebrow">Bill Editor</p>
+          <h1>Query builder</h1>
+          <p class="subtle">Create or edit a `query.json` entry.</p>
+        </div>
+        <div class="header-actions">
+          <a class="button-link" href="index.html">Time entries</a>
+          <a class="button-link" href="pdf.html">Generate PDF</a>
+          <label>
+            Query
+            <select id="query-select"></select>
+          </label>
+          <button id="new-query" type="button">New</button>
+          <button id="run-pipeline" type="button">Run pipeline</button>
+          <a id="open-entries" class="button-link" href="index.html" style="display:none"
+            >Edit entries</a
+          >
+          <span id="status" class="status"></span>
+        </div>
+      </header>
+
+      <section class="panel">
+        <h2>Defaults</h2>
+        <div class="grid two">
+          <label>
+            User
+            <input id="user" type="text" />
+          </label>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Request</h2>
+        <div class="grid two">
+          <label>
+            Query name
+            <input id="query-name" type="text" placeholder="MyNewBill_2024_04" />
+          </label>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Client</h2>
+        <datalist id="client-name-list"></datalist>
+        <div class="grid two">
+          <label>
+            Client name
+            <input
+              id="client-name"
+              type="text"
+              list="client-name-list"
+              placeholder="Client Name"
+            />
+          </label>
+          <label>
+            Billing rate (USD/hr)
+            <input id="billing-rate" type="number" step="1" min="1" />
+          </label>
+        </div>
+        <p id="prefill-note" class="subtle"></p>
+      </section>
+
+      <section class="panel">
+        <h2>Search</h2>
+        <div class="grid two">
+          <label>
+            Start date
+            <input id="start-date" type="date" />
+          </label>
+          <label>
+            End date
+            <input id="end-date" type="date" />
+          </label>
+        </div>
+        <div class="grid two">
+          <label>
+            Emails (one per line)
+            <textarea id="emails" placeholder="person@example.com"></textarea>
+          </label>
+          <label>
+            Keywords (one per line)
+            <textarea id="keywords" placeholder="keyword"></textarea>
+          </label>
+          <label>
+            Exclude keywords (one per line)
+            <textarea id="exclude-keywords" placeholder="invoice"></textarea>
+          </label>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Matters</h2>
+          <button id="add-matter" type="button">Add matter</button>
+        </div>
+        <div id="matters"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Pipeline</h2>
+        <p id="pipeline-progress" class="subtle"></p>
+        <pre id="pipeline-log" class="log" aria-live="polite"></pre>
+      </section>
+    </main>
+    <script src="auth.js"></script>
+    <script src="query.js"></script>
+  </body>
+</html>

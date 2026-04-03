@@ -80,12 +80,43 @@ async function collectBody(req, maxBytes) {
         req.on('error', reject);
     });
 }
+function cookieSecuritySuffix() {
+    return process.env.NODE_ENV === 'production' ? '; Secure' : '';
+}
 function setSessionCookie(res, token, maxAgeSec) {
-    const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
-    res.setHeader('Set-Cookie', `session=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${maxAgeSec}${secure}`);
+    res.setHeader('Set-Cookie', `session=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${maxAgeSec}${cookieSecuritySuffix()}`);
 }
 function clearSessionCookie(res) {
-    res.setHeader('Set-Cookie', `${(0, session_1.getSessionCookieName)()}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`);
+    res.setHeader('Set-Cookie', `${(0, session_1.getSessionCookieName)()}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0${cookieSecuritySuffix()}`);
+}
+function parseSessionTokenFromReq(req) {
+    const cookie = (req.headers.cookie ?? '')
+        .split(';')
+        .find((c) => c.trim().startsWith(`${(0, session_1.getSessionCookieName)()}=`));
+    return cookie ? cookie.split('=')[1]?.trim() : undefined;
+}
+/** Session-derived user id only in production; optional x-user-id header in non-production for tests. */
+function resolveAppUserId(req) {
+    if (req.userId)
+        return req.userId;
+    if (process.env.NODE_ENV !== 'production') {
+        const h = req.headers['x-user-id'];
+        if (typeof h === 'string' && h.trim())
+            return h.trim();
+    }
+    return undefined;
+}
+async function requireSignedInUser(req, res) {
+    if (!auth.authAvailable()) {
+        (0, utils_1.sendJson)(res, 503, { error: 'Authentication is not configured on this server.' });
+        return null;
+    }
+    const uid = resolveAppUserId(req);
+    if (!uid) {
+        (0, utils_1.sendJson)(res, 401, { error: 'Sign in required.' });
+        return null;
+    }
+    return uid;
 }
 async function handleApi(req, res, urlObj, storage) {
     if (urlObj.pathname === '/api/signup' && req.method === 'POST') {
@@ -98,7 +129,7 @@ async function handleApi(req, res, urlObj, storage) {
             return void (0, utils_1.sendJson)(res, 400, { error: 'Invalid JSON payload.' });
         }
         try {
-            const user = await auth.createUser(String(payload.email ?? ''), String(payload.password ?? ''));
+            const user = await auth.createUser(String(payload.email ?? ''), String(payload.password ?? ''), String(payload.firstName ?? ''), String(payload.lastName ?? ''));
             const { sessionToken, expiresAt } = await auth.createSession(user.userId);
             setSessionCookie(res, sessionToken, 7 * 24 * 60 * 60);
             return void (0, utils_1.sendJson)(res, 201, { user: auth.sanitizeUser(user), sessionToken, expiresAt });
@@ -131,43 +162,52 @@ async function handleApi(req, res, urlObj, storage) {
         return void (0, utils_1.sendJson)(res, 200, { user: auth.sanitizeUser(user), sessionToken, expiresAt });
     }
     if (urlObj.pathname === '/api/logout' && req.method === 'POST') {
-        const cookie = (req.headers.cookie ?? '').split(';').find((c) => c.trim().startsWith(`${(0, session_1.getSessionCookieName)()}=`));
-        const token = cookie ? cookie.split('=')[1]?.trim() : undefined;
+        const token = parseSessionTokenFromReq(req);
         if (token)
             await auth.deleteSession(token);
         clearSessionCookie(res);
         return void (0, utils_1.sendJson)(res, 200, { ok: true });
     }
     if (urlObj.pathname === '/api/me' && req.method === 'GET') {
-        const uid = req.userId ?? req.headers['x-user-id'];
-        if (!uid || uid === 'local') {
-            if (!auth.authAvailable())
-                return void (0, utils_1.sendJson)(res, 200, { user: null });
-            return void (0, utils_1.sendJson)(res, 401, { error: 'Not authenticated.' });
+        if (!auth.authAvailable()) {
+            return void (0, utils_1.sendJson)(res, 200, { user: null });
+        }
+        const uid = resolveAppUserId(req);
+        if (!uid) {
+            return void (0, utils_1.sendJson)(res, 200, { user: null });
         }
         const user = await auth.getUserById(uid);
-        if (!user)
-            return void (0, utils_1.sendJson)(res, 401, { error: 'User not found.' });
+        if (!user) {
+            const token = parseSessionTokenFromReq(req);
+            if (token)
+                await auth.deleteSession(token);
+            clearSessionCookie(res);
+            return void (0, utils_1.sendJson)(res, 200, { user: null });
+        }
         return void (0, utils_1.sendJson)(res, 200, { user: auth.sanitizeUser(user) });
     }
     if (urlObj.pathname === '/api/profile' && req.method === 'GET') {
-        const uid = req.userId ?? req.headers['x-user-id'];
-        if (!uid || uid === 'local') {
-            if (!auth.authAvailable())
-                return void (0, utils_1.sendJson)(res, 200, { profile: null });
-            return void (0, utils_1.sendJson)(res, 401, { error: 'Not authenticated.' });
+        if (!auth.authAvailable()) {
+            return void (0, utils_1.sendJson)(res, 200, { profile: null });
+        }
+        const uid = resolveAppUserId(req);
+        if (!uid) {
+            return void (0, utils_1.sendJson)(res, 200, { profile: null });
         }
         const user = await auth.getUserById(uid);
-        if (!user)
-            return void (0, utils_1.sendJson)(res, 401, { error: 'User not found.' });
+        if (!user) {
+            const token = parseSessionTokenFromReq(req);
+            if (token)
+                await auth.deleteSession(token);
+            clearSessionCookie(res);
+            return void (0, utils_1.sendJson)(res, 200, { profile: null });
+        }
         return void (0, utils_1.sendJson)(res, 200, { profile: auth.sanitizeUser(user) });
     }
     if (urlObj.pathname === '/api/profile' && req.method === 'PUT') {
-        const uid = req.userId ?? req.headers['x-user-id'];
-        if (!uid || uid === 'local') {
-            if (!auth.authAvailable())
-                return void (0, utils_1.sendJson)(res, 200, { profile: null });
-            return void (0, utils_1.sendJson)(res, 401, { error: 'Not authenticated.' });
+        const uid = resolveAppUserId(req);
+        if (!auth.authAvailable() || !uid) {
+            return void (0, utils_1.sendJson)(res, 401, { error: 'Sign in required.' });
         }
         const body = await collectBody(req, 50000);
         let payload;
@@ -185,7 +225,9 @@ async function handleApi(req, res, urlObj, storage) {
             return void (0, utils_1.sendJson)(res, 404, { error: 'User not found.' });
         return void (0, utils_1.sendJson)(res, 200, { profile: auth.sanitizeUser(updated) });
     }
-    const userId = req.userId ?? req.headers['x-user-id'] ?? 'local';
+    const userId = await requireSignedInUser(req, res);
+    if (userId === null)
+        return;
     if (urlObj.pathname === '/api/queries' && req.method === 'GET') {
         const list = await queries.getQueryList(storage, userId);
         return void (0, utils_1.sendJson)(res, 200, { queries: list });

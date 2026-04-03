@@ -41,7 +41,7 @@ export class AppRunnerBackend extends Construct {
     const region = cdk.Stack.of(this).region;
 
     const runtimeEnvironmentVariables: apprunner.CfnService.KeyValuePairProperty[] = [
-      { name: 'NODE_ENV', value: 'development' },
+      { name: 'NODE_ENV', value: 'production' },
       { name: 'PORT', value: '8080' },
       { name: 'S3_BUCKET', value: props.dataBucket.bucketName },
       { name: 'AWS_REGION', value: region },

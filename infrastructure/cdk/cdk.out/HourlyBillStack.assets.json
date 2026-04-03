@@ -1,0 +1,36 @@
+{
+  "version": "48.0.0",
+  "files": {
+    "63170f3add06d94b9ba83fcd2bdf2ef3f060b2379f452bdb78b0d74d6ccd42b3": {
+      "displayName": "HourlyBillStack Template",
+      "source": {
+        "path": "HourlyBillStack.template.json",
+        "packaging": "file"
+      },
+      "destinations": {
+        "873057437151-us-west-2-60163e49": {
+          "bucketName": "cdk-hnb659fds-assets-873057437151-us-west-2",
+          "objectKey": "63170f3add06d94b9ba83fcd2bdf2ef3f060b2379f452bdb78b0d74d6ccd42b3.json",
+          "region": "us-west-2",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::873057437151:role/cdk-hnb659fds-file-publishing-role-873057437151-us-west-2"
+        }
+      }
+    }
+  },
+  "dockerImages": {
+    "804e80eefeafcac89ba246d8c41267dedce7b3e61ff0f65c2a1344e183ed5efb": {
+      "displayName": "AppRunnerBackend/BackendImage",
+      "source": {
+        "directory": "asset.804e80eefeafcac89ba246d8c41267dedce7b3e61ff0f65c2a1344e183ed5efb"
+      },
+      "destinations": {
+        "873057437151-us-west-2-5ca18a8e": {
+          "repositoryName": "cdk-hnb659fds-container-assets-873057437151-us-west-2",
+          "imageTag": "804e80eefeafcac89ba246d8c41267dedce7b3e61ff0f65c2a1344e183ed5efb",
+          "region": "us-west-2",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::873057437151:role/cdk-hnb659fds-image-publishing-role-873057437151-us-west-2"
+        }
+      }
+    }
+  }
+}
