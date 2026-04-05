@@ -1,90 +1,79 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
-import { useQueryClient } from "@tanstack/react-query";
-import { useMutation } from "@tanstack/react-query";
+import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useCurrentUser, isSubscriptionActive } from "@/hooks/use-auth";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import {
-  CreditCard,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
   CheckCircle2,
   XCircle,
-  Clock,
   AlertTriangle,
+  Clock,
   Loader2,
   Sparkles,
-  ArrowRight,
   FileText,
   Shield,
   Zap,
+  CreditCard,
+  Check,
   RefreshCw,
+  ReceiptText,
+  Ban,
 } from "lucide-react";
 
-type SubscriptionStatus = "none" | "active" | "trialing" | "past_due" | "canceled" | "incomplete" | "incomplete_expired" | "unpaid" | "paused";
+type SubscriptionStatus =
+  | "none"
+  | "active"
+  | "trialing"
+  | "past_due"
+  | "canceled"
+  | "incomplete"
+  | "incomplete_expired"
+  | "unpaid"
+  | "paused";
 
 function StatusBadge({ status }: { status: SubscriptionStatus }) {
   const configs: Record<SubscriptionStatus, { label: string; className: string; icon: React.ReactNode }> = {
-    active: {
-      label: "Active",
-      className: "bg-emerald-50 text-emerald-700 border-emerald-200 ring-1 ring-emerald-200",
-      icon: <CheckCircle2 className="w-3.5 h-3.5" />,
-    },
-    trialing: {
-      label: "Trial",
-      className: "bg-violet-50 text-violet-700 border-violet-200 ring-1 ring-violet-200",
-      icon: <Sparkles className="w-3.5 h-3.5" />,
-    },
-    past_due: {
-      label: "Past Due",
-      className: "bg-amber-50 text-amber-700 border-amber-200 ring-1 ring-amber-200",
-      icon: <AlertTriangle className="w-3.5 h-3.5" />,
-    },
-    canceled: {
-      label: "Canceled",
-      className: "bg-slate-100 text-slate-600 border-slate-200 ring-1 ring-slate-200",
-      icon: <XCircle className="w-3.5 h-3.5" />,
-    },
-    incomplete: {
-      label: "Incomplete",
-      className: "bg-amber-50 text-amber-700 border-amber-200 ring-1 ring-amber-200",
-      icon: <Clock className="w-3.5 h-3.5" />,
-    },
-    incomplete_expired: {
-      label: "Expired",
-      className: "bg-red-50 text-red-700 border-red-200 ring-1 ring-red-200",
-      icon: <XCircle className="w-3.5 h-3.5" />,
-    },
-    unpaid: {
-      label: "Unpaid",
-      className: "bg-red-50 text-red-700 border-red-200 ring-1 ring-red-200",
-      icon: <AlertTriangle className="w-3.5 h-3.5" />,
-    },
-    paused: {
-      label: "Paused",
-      className: "bg-slate-100 text-slate-600 border-slate-200 ring-1 ring-slate-200",
-      icon: <Clock className="w-3.5 h-3.5" />,
-    },
-    none: {
-      label: "No subscription",
-      className: "bg-slate-100 text-slate-500 border-slate-200 ring-1 ring-slate-200",
-      icon: <XCircle className="w-3.5 h-3.5" />,
-    },
+    active:             { label: "Active",      className: "bg-emerald-50 text-emerald-700 border-emerald-200", icon: <CheckCircle2 className="w-3 h-3" /> },
+    trialing:           { label: "Trial",       className: "bg-violet-50  text-violet-700  border-violet-200",  icon: <Sparkles     className="w-3 h-3" /> },
+    past_due:           { label: "Past Due",    className: "bg-amber-50   text-amber-700   border-amber-200",   icon: <AlertTriangle className="w-3 h-3" /> },
+    canceled:           { label: "Canceled",    className: "bg-slate-100  text-slate-600   border-slate-200",   icon: <XCircle      className="w-3 h-3" /> },
+    incomplete:         { label: "Incomplete",  className: "bg-amber-50   text-amber-700   border-amber-200",   icon: <Clock        className="w-3 h-3" /> },
+    incomplete_expired: { label: "Expired",     className: "bg-red-50     text-red-700     border-red-200",     icon: <XCircle      className="w-3 h-3" /> },
+    unpaid:             { label: "Unpaid",      className: "bg-red-50     text-red-700     border-red-200",     icon: <AlertTriangle className="w-3 h-3" /> },
+    paused:             { label: "Paused",      className: "bg-slate-100  text-slate-600   border-slate-200",   icon: <Clock        className="w-3 h-3" /> },
+    none:               { label: "—",           className: "bg-slate-100  text-slate-500   border-slate-200",   icon: null },
   };
-
   const cfg = configs[status] ?? configs.none;
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${cfg.className}`}>
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${cfg.className}`}>
       {cfg.icon}
       {cfg.label}
     </span>
   );
 }
 
-const featureRows = [
-  { icon: FileText, title: "Unlimited PDF exports", desc: "Generate professional invoices for every client, every time." },
-  { icon: Zap, title: "Instant generation", desc: "PDFs render in seconds from your existing time entries." },
-  { icon: Shield, title: "Secure & private", desc: "Your billing data is encrypted and never shared." },
+const FREE_FEATURES = [
+  "Time entry management",
+  "Matter & client organization",
+  "Invoice preview",
+  "Query builder",
+];
+
+const PRO_FEATURES = [
+  "Everything in Free",
+  "Unlimited PDF invoice exports",
+  "Professional branded documents",
+  "Priority support",
 ];
 
 export default function SubscriptionPage() {
@@ -92,12 +81,13 @@ export default function SubscriptionPage() {
   const queryClient = useQueryClient();
   const [, navigate] = useLocation();
   const [redirecting, setRedirecting] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
 
   const user = data?.user ?? null;
   const sub = user?.subscription;
   const isActive = isSubscriptionActive(sub);
+  const hasAnySubscription = sub?.status && sub.status !== "none";
 
-  // Handle returning from Stripe Checkout
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("checkout") === "success") {
@@ -115,11 +105,8 @@ export default function SubscriptionPage() {
       const res = await apiRequest("POST", "/api/billing/checkout-session");
       return res.json() as Promise<{ url: string }>;
     },
-    onSuccess: (data) => {
-      if (data.url) {
-        setRedirecting(true);
-        window.location.href = data.url;
-      }
+    onSuccess: (d) => {
+      if (d.url) { setRedirecting(true); window.location.href = d.url; }
     },
     onError: (err: Error) => {
       toast({ title: "Checkout failed", description: err.message, variant: "destructive" });
@@ -131,18 +118,21 @@ export default function SubscriptionPage() {
       const res = await apiRequest("POST", "/api/billing/portal-session");
       return res.json() as Promise<{ url: string }>;
     },
-    onSuccess: (data) => {
-      if (data.url) {
-        setRedirecting(true);
-        window.location.href = data.url;
-      }
+    onSuccess: (d) => {
+      if (d.url) { setRedirecting(true); window.location.href = d.url; }
     },
     onError: (err: Error) => {
       toast({ title: "Could not open billing portal", description: err.message, variant: "destructive" });
     },
   });
 
-  const isLoadingAction = checkoutMutation.isPending || portalMutation.isPending || redirecting;
+  const isWorking = checkoutMutation.isPending || portalMutation.isPending || redirecting;
+
+  const periodEndDate = sub?.currentPeriodEnd
+    ? new Date(sub.currentPeriodEnd * 1000).toLocaleDateString("en-US", {
+        month: "long", day: "numeric", year: "numeric",
+      })
+    : null;
 
   if (isLoading) {
     return (
@@ -152,153 +142,250 @@ export default function SubscriptionPage() {
     );
   }
 
-  const periodEndDate = sub?.currentPeriodEnd
-    ? new Date(sub.currentPeriodEnd * 1000).toLocaleDateString("en-US", {
-        month: "long",
-        day: "numeric",
-        year: "numeric",
-      })
-    : null;
-
   return (
-    <div className="max-w-3xl mx-auto w-full p-6 lg:p-8 space-y-8 animate-in fade-in duration-500">
-      {/* Page header */}
-      <div>
+    <div className="max-w-4xl mx-auto w-full p-6 lg:p-10 space-y-10 animate-in fade-in duration-500">
+
+      {/* ── Page header ─────────────────────────────────────────────── */}
+      <div className="space-y-1">
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Subscription</h1>
-        <p className="text-sm text-muted-foreground mt-1">Manage your Hourly Bill Pro plan and billing.</p>
+        <p className="text-sm text-muted-foreground">
+          Choose the plan that works for your firm.
+        </p>
       </div>
 
-      {/* Status card */}
-      <div className="relative rounded-2xl border border-border/60 bg-white shadow-sm overflow-hidden">
-        {/* Decorative gradient */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-primary/5 via-transparent to-transparent pointer-events-none" />
+      {/* ── Plan cards ──────────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
 
-        <div className="p-6 sm:p-8">
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-            <div className="space-y-1">
-              <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary/10">
-                  <CreditCard className="w-5 h-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Current plan
-                  </p>
-                  <p className="text-lg font-bold text-foreground leading-tight">
-                    {isActive ? "Hourly Bill Pro" : "Free"}
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <StatusBadge status={(sub?.status ?? "none") as SubscriptionStatus} />
-              <button
-                onClick={() => refetch()}
-                className="text-muted-foreground hover:text-foreground transition-colors rounded-md p-1"
-                title="Refresh"
-              >
-                <RefreshCw className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-
-          {isActive && periodEndDate && (
-            <div className="mt-5 pt-5 border-t border-border/40">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="bg-slate-50 rounded-xl p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
-                    Billing amount
-                  </p>
-                  <p className="text-2xl font-bold text-foreground">
-                    $100
-                    <span className="text-sm font-normal text-muted-foreground ml-1">/month</span>
-                  </p>
-                </div>
-                <div className="bg-slate-50 rounded-xl p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
-                    {sub?.status === "canceled" ? "Access until" : "Next renewal"}
-                  </p>
-                  <p className="text-base font-semibold text-foreground mt-1">{periodEndDate}</p>
-                </div>
-              </div>
+        {/* Free card */}
+        <div className={`relative flex flex-col rounded-2xl border bg-white shadow-sm p-7 transition-all ${
+          !isActive ? "border-primary ring-2 ring-primary/20" : "border-border/60"
+        }`}>
+          {!isActive && (
+            <div className="absolute -top-3 left-6">
+              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-primary text-primary-foreground text-xs font-semibold shadow-sm">
+                <CheckCircle2 className="w-3 h-3" /> Current plan
+              </span>
             </div>
           )}
 
-          {/* Action buttons */}
-          <div className="flex flex-wrap items-center gap-3 mt-6">
-            {!isActive && (
-              <Button
-                onClick={() => checkoutMutation.mutate()}
-                disabled={isLoadingAction}
-                className="gap-2 bg-slate-900 hover:bg-slate-800 text-white shadow-sm h-10"
-              >
-                {isLoadingAction && checkoutMutation.isPending ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Sparkles className="w-4 h-4" />
-                )}
-                {redirecting && checkoutMutation.isSuccess ? "Redirecting…" : "Subscribe — $100/mo"}
-              </Button>
-            )}
-
-            {sub?.status && sub.status !== "none" && (
-              <Button
-                variant="outline"
-                onClick={() => portalMutation.mutate()}
-                disabled={isLoadingAction}
-                className="gap-2 h-10 border-slate-200 text-slate-700 hover:bg-slate-50"
-              >
-                {isLoadingAction && portalMutation.isPending ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <CreditCard className="w-4 h-4" />
-                )}
-                Manage billing
-              </Button>
-            )}
-
-            {isActive && (
-              <Button
-                variant="ghost"
-                onClick={() => navigate("/pdf")}
-                className="gap-2 h-10 text-slate-600"
-              >
-                <FileText className="w-4 h-4" />
-                Go to Invoices
-                <ArrowRight className="w-3.5 h-3.5" />
-              </Button>
-            )}
+          <div className="mb-6">
+            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">Free</p>
+            <div className="flex items-baseline gap-1">
+              <span className="text-4xl font-bold text-foreground">$0</span>
+              <span className="text-sm text-muted-foreground">/month</span>
+            </div>
+            <p className="text-sm text-muted-foreground mt-2">
+              All the essentials to manage your time and billing.
+            </p>
           </div>
+
+          <ul className="space-y-3 mb-8 flex-1">
+            {FREE_FEATURES.map((f) => (
+              <li key={f} className="flex items-start gap-2.5 text-sm text-slate-700">
+                <Check className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+                {f}
+              </li>
+            ))}
+          </ul>
+
+          <Button
+            variant="outline"
+            disabled
+            className="w-full border-slate-200 text-slate-500 cursor-default"
+          >
+            {!isActive ? "Your current plan" : "Free plan"}
+          </Button>
+        </div>
+
+        {/* Pro card */}
+        <div className={`relative flex flex-col rounded-2xl border shadow-sm p-7 transition-all ${
+          isActive
+            ? "border-primary ring-2 ring-primary/20 bg-white"
+            : "border-slate-200 bg-gradient-to-br from-slate-900 to-slate-800 text-white"
+        }`}>
+          {isActive && (
+            <div className="absolute -top-3 left-6">
+              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-primary text-primary-foreground text-xs font-semibold shadow-sm">
+                <CheckCircle2 className="w-3 h-3" /> Current plan
+              </span>
+            </div>
+          )}
+
+          {/* Decorative blob when not active */}
+          {!isActive && (
+            <div className="absolute top-0 right-0 w-40 h-40 rounded-full bg-white/5 -translate-y-1/3 translate-x-1/3 pointer-events-none" />
+          )}
+
+          <div className="mb-6 relative">
+            <div className="flex items-center gap-2 mb-2">
+              <p className={`text-xs font-bold uppercase tracking-widest ${isActive ? "text-muted-foreground" : "text-slate-400"}`}>
+                Pro
+              </p>
+              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                isActive ? "bg-primary/10 text-primary" : "bg-white/10 text-white"
+              }`}>
+                <Sparkles className="w-2.5 h-2.5" /> Recommended
+              </span>
+            </div>
+            <div className="flex items-baseline gap-1">
+              <span className={`text-4xl font-bold ${isActive ? "text-foreground" : "text-white"}`}>$100</span>
+              <span className={`text-sm ${isActive ? "text-muted-foreground" : "text-slate-400"}`}>/month</span>
+            </div>
+            <p className={`text-sm mt-2 ${isActive ? "text-muted-foreground" : "text-slate-400"}`}>
+              Unlock PDF exports and professional invoicing.
+            </p>
+          </div>
+
+          <ul className="space-y-3 mb-8 flex-1 relative">
+            {PRO_FEATURES.map((f) => (
+              <li key={f} className={`flex items-start gap-2.5 text-sm ${isActive ? "text-slate-700" : "text-slate-300"}`}>
+                <Check className={`w-4 h-4 shrink-0 mt-0.5 ${isActive ? "text-primary" : "text-emerald-400"}`} />
+                {f}
+              </li>
+            ))}
+          </ul>
+
+          {isActive ? (
+            <Button
+              variant="outline"
+              disabled
+              className="w-full border-slate-200 text-slate-500 cursor-default"
+            >
+              Your current plan
+            </Button>
+          ) : (
+            <Button
+              className="w-full bg-white text-slate-900 hover:bg-slate-100 font-semibold shadow-sm gap-2 relative"
+              onClick={() => checkoutMutation.mutate()}
+              disabled={isWorking}
+            >
+              {isWorking && checkoutMutation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <CreditCard className="w-4 h-4" />
+              )}
+              {redirecting ? "Redirecting…" : "Subscribe — $100/mo"}
+            </Button>
+          )}
         </div>
       </div>
 
-      {/* Features section — shown when not subscribed */}
-      {!isActive && (
-        <div>
-          <h2 className="text-base font-semibold text-foreground mb-4">What you get with Pro</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {featureRows.map(({ icon: Icon, title, desc }) => (
-              <div
-                key={title}
-                className="rounded-xl border border-border/60 bg-white p-5 shadow-sm hover:shadow-md transition-shadow"
-              >
-                <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10 mb-4">
-                  <Icon className="w-5 h-5 text-primary" />
-                </div>
-                <h3 className="text-sm font-semibold text-foreground mb-1">{title}</h3>
-                <p className="text-xs text-muted-foreground leading-relaxed">{desc}</p>
+      {/* ── Billing management ──────────────────────────────────────── */}
+      {hasAnySubscription && (
+        <div className="rounded-2xl border border-border/60 bg-white shadow-sm overflow-hidden">
+          <div className="px-6 py-4 border-b border-border/40 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <ReceiptText className="w-4 h-4 text-muted-foreground" />
+              Billing details
+            </h2>
+            <button
+              onClick={() => refetch()}
+              className="text-muted-foreground hover:text-foreground transition-colors rounded-md p-1"
+              title="Refresh status"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          <div className="px-6 py-5 space-y-5">
+            {/* Status row */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Status</p>
+                <StatusBadge status={(sub?.status ?? "none") as SubscriptionStatus} />
               </div>
-            ))}
+              {isActive && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Amount</p>
+                  <p className="text-sm font-semibold text-foreground">$100 / month</p>
+                </div>
+              )}
+              {periodEndDate && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+                    {sub?.status === "canceled" ? "Access until" : "Next renewal"}
+                  </p>
+                  <p className="text-sm font-semibold text-foreground">{periodEndDate}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex flex-wrap items-center gap-3 pt-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => portalMutation.mutate()}
+                disabled={isWorking}
+                className="gap-2 h-9 border-slate-200 text-slate-700 hover:bg-slate-50"
+              >
+                {portalMutation.isPending ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <CreditCard className="w-3.5 h-3.5" />
+                )}
+                Manage billing
+              </Button>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate("/pdf")}
+                className="gap-2 h-9 text-slate-600 hover:bg-slate-50"
+              >
+                <FileText className="w-3.5 h-3.5" />
+                Go to Invoices
+              </Button>
+
+              {isActive && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setCancelOpen(true)}
+                  className="gap-2 h-9 text-red-500 hover:text-red-600 hover:bg-red-50 ml-auto"
+                >
+                  <Ban className="w-3.5 h-3.5" />
+                  Cancel subscription
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       )}
 
-      {/* Info note */}
-      <div className="rounded-xl bg-slate-50 border border-border/40 px-5 py-4 text-sm text-muted-foreground leading-relaxed">
-        <span className="font-semibold text-foreground">Need help?</span> Contact support or manage your payment
-        method, invoices, and cancellation through the billing portal above. Subscriptions renew monthly and can
-        be canceled at any time.
-      </div>
+      {/* ── Cancel confirmation dialog ───────────────────────────────── */}
+      <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Ban className="w-4 h-4 text-red-500" />
+              Cancel subscription?
+            </DialogTitle>
+            <DialogDescription className="pt-1 leading-relaxed">
+              You'll keep access to Pro features until the end of your current billing period
+              {periodEndDate ? ` (${periodEndDate})` : ""}. After that, PDF exports will be
+              disabled. You can re-subscribe at any time.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button variant="outline" onClick={() => setCancelOpen(false)} className="flex-1">
+              Keep subscription
+            </Button>
+            <Button
+              variant="destructive"
+              className="flex-1 gap-2"
+              disabled={isWorking}
+              onClick={() => {
+                setCancelOpen(false);
+                portalMutation.mutate();
+              }}
+            >
+              {portalMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+              Continue to cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

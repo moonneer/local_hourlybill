@@ -24,6 +24,7 @@ import LoginPage from "@/pages/login";
 import SubscriptionPage from "@/pages/subscription";
 import NotFound from "@/pages/not-found";
 import { useCurrentUser, type UserInfo } from "@/hooks/use-auth";
+import { AppFooter } from "@/components/app-footer";
 
 function ProfileMenu() {
   const { data } = useCurrentUser();
@@ -206,6 +207,7 @@ export default function App() {
               <Header />
               <main className="flex flex-1 flex-col min-h-0 overflow-x-auto overflow-y-auto overscroll-y-contain bg-slate-50/50 safe-pb">
                 <Router />
+                <AppFooter />
               </main>
             </div>
           </div>
