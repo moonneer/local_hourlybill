@@ -3,16 +3,17 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Separator } from "@/components/ui/separator";
 import { apiRequest } from "@/lib/queryClient";
 import { apiUrl } from "@/lib/apiBase";
 import { formatCurrency, formatHours } from "@/lib/utils";
 import { FileDown, FileText, RefreshCw, Save, Image as ImageIcon, Building, MapPin, Globe, Phone } from "lucide-react";
+import { useCurrentUser, isSubscriptionActive } from "@/hooks/use-auth";
+import { SubscribeModal } from "@/components/subscribe-modal";
 
 interface Inputs {
   user?: string;
@@ -37,11 +38,15 @@ export default function PdfPage() {
 
   const [firmInfo, setFirmInfo] = useState<Inputs>({});
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [subscribeOpen, setSubscribeOpen] = useState(false);
 
-  // Queries
+  const { data: authData } = useCurrentUser();
+  const user = authData?.user ?? null;
+  const subscribed = isSubscriptionActive(user?.subscription);
+
   const { data: queriesData } = useQuery<{ queries: string[] }>({ queryKey: ["/api/queries"] });
   const { data: inputsData, isLoading: isLoadingInputs } = useQuery<Inputs>({ queryKey: ["/api/inputs"] });
-  
+
   const { data: timeEntriesData, isLoading: isLoadingEntries } = useQuery({
     queryKey: ["/api/time-entries", selectedQuery],
     queryFn: async () => {
@@ -92,13 +97,16 @@ export default function PdfPage() {
 
   const generatePdf = () => {
     if (!selectedQuery) return;
+    if (!subscribed) {
+      setSubscribeOpen(true);
+      return;
+    }
     window.open(apiUrl(`/api/generate-pdf?query=${encodeURIComponent(selectedQuery)}`), "_blank");
   };
 
-  // Prepare invoice data
   const entries = timeEntriesData?.entries || [];
   const clientName = timeEntriesData?.client_name || "Client Name";
-  
+
   const groupedEntries: Record<string, any[]> = {};
   let grandTotal = 0;
 
@@ -133,7 +141,12 @@ export default function PdfPage() {
             <Button variant="outline" size="icon" onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/time-entries", selectedQuery] })} disabled={!selectedQuery} className="h-11 w-11 sm:h-10 sm:w-10 shrink-0 bg-white touch-manipulation">
               <RefreshCw className="w-4 h-4 text-muted-foreground" />
             </Button>
-            <Button onClick={generatePdf} disabled={!selectedQuery || entries.length === 0} className="h-11 sm:h-10 shadow-sm flex-1 sm:flex-initial min-w-0 touch-manipulation">
+            <Button
+              onClick={generatePdf}
+              disabled={!selectedQuery || entries.length === 0}
+              className="h-11 sm:h-10 shadow-sm flex-1 sm:flex-initial min-w-0 touch-manipulation"
+              title={!subscribed ? "Subscribe to export PDFs" : undefined}
+            >
               <FileDown className="w-4 h-4 mr-2 shrink-0" />
               Export PDF
             </Button>
@@ -163,7 +176,7 @@ export default function PdfPage() {
                   <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Firm Name</Label>
                   <Input value={firmInfo.user || ''} onChange={e => updateFirmInfo('user', e.target.value)} className="h-9" />
                 </div>
-                
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-1.5"><Phone className="w-3 h-3" /> Phone</Label>
@@ -267,34 +280,34 @@ export default function PdfPage() {
                       <div key={matter} className="space-y-4">
                         <h4 className="text-sm font-bold text-slate-800 border-b-2 border-slate-200 pb-2">{matter}</h4>
                         <div className="overflow-x-auto -mx-2 px-2 sm:mx-0 sm:px-0">
-                        <table className="w-full min-w-[520px] text-[13px]">
-                          <thead>
-                            <tr className="text-left text-slate-500 border-b border-slate-100">
-                              <th className="py-3 font-semibold w-[15%]">Date</th>
-                              <th className="py-3 font-semibold w-[45%]">Description</th>
-                              <th className="py-3 font-semibold text-right w-[10%]">Hours</th>
-                              <th className="py-3 font-semibold text-right w-[15%]">Rate</th>
-                              <th className="py-3 font-semibold text-right w-[15%]">Amount</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-50">
-                            {matterEntries.sort((a,b) => (a.date || "").localeCompare(b.date || "")).map((entry, idx) => (
-                              <tr key={idx} className="text-slate-600 hover:bg-slate-50/50 transition-colors">
-                                <td className="py-4 align-top whitespace-nowrap">{entry.date}</td>
-                                <td className="py-4 align-top pr-6 leading-relaxed">{entry.description}</td>
-                                <td className="py-4 align-top text-right">{entry.entry_type === 'time' ? (entry.predicted_time || 0).toFixed(1) : '-'}</td>
-                                <td className="py-4 align-top text-right">{entry.entry_type === 'time' ? formatCurrency(entry.billing_rate || 0) : '-'}</td>
-                                <td className="py-4 align-top text-right font-medium text-slate-800">{formatCurrency(entry.amount_charged || 0)}</td>
+                          <table className="w-full min-w-[520px] text-[13px]">
+                            <thead>
+                              <tr className="text-left text-slate-500 border-b border-slate-100">
+                                <th className="py-3 font-semibold w-[15%]">Date</th>
+                                <th className="py-3 font-semibold w-[45%]">Description</th>
+                                <th className="py-3 font-semibold text-right w-[10%]">Hours</th>
+                                <th className="py-3 font-semibold text-right w-[15%]">Rate</th>
+                                <th className="py-3 font-semibold text-right w-[15%]">Amount</th>
                               </tr>
-                            ))}
-                          </tbody>
-                          <tfoot>
-                            <tr className="border-t border-slate-200 bg-slate-50/50">
-                              <td colSpan={4} className="py-3 px-4 text-right font-semibold text-slate-500 text-[11px] uppercase tracking-wider">Matter Subtotal</td>
-                              <td className="py-3 text-right font-bold text-slate-900">{formatCurrency(matterTotal)}</td>
-                            </tr>
-                          </tfoot>
-                        </table>
+                            </thead>
+                            <tbody className="divide-y divide-slate-50">
+                              {matterEntries.sort((a, b) => (a.date || "").localeCompare(b.date || "")).map((entry, idx) => (
+                                <tr key={idx} className="text-slate-600 hover:bg-slate-50/50 transition-colors">
+                                  <td className="py-4 align-top whitespace-nowrap">{entry.date}</td>
+                                  <td className="py-4 align-top pr-6 leading-relaxed">{entry.description}</td>
+                                  <td className="py-4 align-top text-right">{entry.entry_type === 'time' ? (entry.predicted_time || 0).toFixed(1) : '-'}</td>
+                                  <td className="py-4 align-top text-right">{entry.entry_type === 'time' ? formatCurrency(entry.billing_rate || 0) : '-'}</td>
+                                  <td className="py-4 align-top text-right font-medium text-slate-800">{formatCurrency(entry.amount_charged || 0)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                            <tfoot>
+                              <tr className="border-t border-slate-200 bg-slate-50/50">
+                                <td colSpan={4} className="py-3 px-4 text-right font-semibold text-slate-500 text-[11px] uppercase tracking-wider">Matter Subtotal</td>
+                                <td className="py-3 text-right font-bold text-slate-900">{formatCurrency(matterTotal)}</td>
+                              </tr>
+                            </tfoot>
+                          </table>
                         </div>
                       </div>
                     );
@@ -321,6 +334,12 @@ export default function PdfPage() {
           )}
         </div>
       </div>
+
+      <SubscribeModal
+        open={subscribeOpen}
+        onOpenChange={setSubscribeOpen}
+        hasCustomer={!!user}
+      />
     </div>
   );
 }

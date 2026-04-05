@@ -23,7 +23,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.verifyPassword = exports.deleteSession = exports.getSession = exports.createSession = exports.sanitizeUser = exports.updateUserProfile = exports.getUserByEmail = exports.getUserById = exports.createUser = exports.authAvailable = void 0;
+exports.verifyPassword = exports.deleteSession = exports.getSession = exports.createSession = exports.sanitizeUser = exports.updateUserSubscription = exports.updateUserProfile = exports.getUserByEmail = exports.getUserByStripeCustomerId = exports.getUserById = exports.createUser = exports.authAvailable = void 0;
 const client_dynamodb_1 = require("@aws-sdk/client-dynamodb");
 const lib_dynamodb_1 = require("@aws-sdk/lib-dynamodb");
 const bcrypt = __importStar(require("bcryptjs"));
@@ -100,6 +100,21 @@ async function getUserById(userId) {
     return r.Item ?? null;
 }
 exports.getUserById = getUserById;
+async function getUserByStripeCustomerId(customerId) {
+    const client = getClient();
+    if (!client)
+        return null;
+    const r = await client.send(new lib_dynamodb_1.QueryCommand({
+        TableName: USERS_TABLE,
+        IndexName: 'by-stripe-customer',
+        KeyConditionExpression: 'stripeCustomerId = :c',
+        ExpressionAttributeValues: { ':c': customerId },
+        Limit: 1,
+    }));
+    const item = r.Items?.[0];
+    return item ? item : null;
+}
+exports.getUserByStripeCustomerId = getUserByStripeCustomerId;
 async function getUserByEmail(email) {
     const client = getClient();
     if (!client)
@@ -130,6 +145,44 @@ async function updateUserProfile(userId, updates) {
     return updated;
 }
 exports.updateUserProfile = updateUserProfile;
+async function updateUserSubscription(userId, fields) {
+    const client = getClient();
+    if (!client)
+        return;
+    const exprs = [];
+    const names = {};
+    const vals = {};
+    if (fields.stripeCustomerId !== undefined) {
+        exprs.push('#cid = :cid');
+        names['#cid'] = 'stripeCustomerId';
+        vals[':cid'] = fields.stripeCustomerId;
+    }
+    if (fields.stripeSubscriptionId !== undefined) {
+        exprs.push('#sid = :sid');
+        names['#sid'] = 'stripeSubscriptionId';
+        vals[':sid'] = fields.stripeSubscriptionId;
+    }
+    if (fields.subscriptionStatus !== undefined) {
+        exprs.push('#ss = :ss');
+        names['#ss'] = 'subscriptionStatus';
+        vals[':ss'] = fields.subscriptionStatus;
+    }
+    if (fields.subscriptionCurrentPeriodEnd !== undefined) {
+        exprs.push('#pe = :pe');
+        names['#pe'] = 'subscriptionCurrentPeriodEnd';
+        vals[':pe'] = fields.subscriptionCurrentPeriodEnd;
+    }
+    if (!exprs.length)
+        return;
+    await client.send(new lib_dynamodb_1.UpdateCommand({
+        TableName: USERS_TABLE,
+        Key: { userId },
+        UpdateExpression: `SET ${exprs.join(', ')}`,
+        ExpressionAttributeNames: names,
+        ExpressionAttributeValues: vals,
+    }));
+}
+exports.updateUserSubscription = updateUserSubscription;
 function sanitizeUser(u) {
     return {
         userId: u.userId,
@@ -138,6 +191,10 @@ function sanitizeUser(u) {
         lastName: u.lastName,
         displayName: u.displayName,
         avatarUrl: u.avatarUrl,
+        subscription: {
+            status: u.subscriptionStatus ?? 'none',
+            currentPeriodEnd: u.subscriptionCurrentPeriodEnd,
+        },
     };
 }
 exports.sanitizeUser = sanitizeUser;

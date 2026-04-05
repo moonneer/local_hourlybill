@@ -24,6 +24,7 @@ export function AppSidebar() {
   const [location] = useLocation();
   const { data } = useCurrentUser();
   const user = data?.user ?? null;
+  const onLogin = location.startsWith("/login");
 
   return (
     <Sidebar className="border-r border-border bg-sidebar">
@@ -80,8 +81,8 @@ export function AppSidebar() {
           </SidebarGroup>
         )}
       </SidebarContent>
-      <SidebarFooter className="border-t border-border/40 p-3">
-        {!user && (
+      {!user && !onLogin && (
+        <SidebarFooter className="border-t border-border/40 p-3">
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton asChild className="h-10">
@@ -91,8 +92,8 @@ export function AppSidebar() {
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
-        )}
-      </SidebarFooter>
+        </SidebarFooter>
+      )}
     </Sidebar>
   );
 }

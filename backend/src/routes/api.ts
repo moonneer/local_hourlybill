@@ -29,6 +29,7 @@ import {
 import * as queries from '../services/queries';
 import * as inputs from '../services/inputs';
 import * as auth from '../services/auth';
+import * as stripeService from '../services/stripe';
 import { getSessionCookieName } from '../session';
 
 const activePipelines = new Map<string, { started_at: number; abort: () => void }>();
@@ -76,6 +77,23 @@ async function collectBody(req: IncomingMessage, maxBytes: number): Promise<stri
       if (body.length > maxBytes) req.destroy();
     });
     req.on('end', () => resolve(body));
+    req.on('error', reject);
+  });
+}
+
+async function collectBodyBuffer(req: IncomingMessage, maxBytes: number): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    let size = 0;
+    req.on('data', (chunk: Buffer) => {
+      size += chunk.length;
+      if (size > maxBytes) {
+        req.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on('end', () => resolve(Buffer.concat(chunks)));
     req.on('error', reject);
   });
 }
@@ -246,8 +264,134 @@ export async function handleApi(
     return void sendJson(res, 200, { profile: auth.sanitizeUser(updated) });
   }
 
+  // ── Stripe webhook (no session auth; raw body required) ──────────────────
+  if (urlObj.pathname === '/api/stripe/webhook' && req.method === 'POST') {
+    if (!stripeService.stripeAvailable()) {
+      return void sendJson(res, 503, { error: 'Stripe is not configured.' });
+    }
+    const rawBody = await collectBodyBuffer(req, 1_000_000);
+    const sig = req.headers['stripe-signature'];
+    if (!sig || typeof sig !== 'string') {
+      return void sendJson(res, 400, { error: 'Missing Stripe-Signature header.' });
+    }
+    let event;
+    try {
+      event = stripeService.getStripe().webhooks.constructEvent(
+        rawBody,
+        sig,
+        stripeService.getWebhookSecret()
+      );
+    } catch (err) {
+      return void sendJson(res, 400, { error: `Webhook signature verification failed: ${(err as Error).message}` });
+    }
+
+    try {
+      if (event.type === 'checkout.session.completed') {
+        const session = event.data.object as {
+          metadata?: { userId?: string };
+          customer?: string;
+          subscription?: string;
+        };
+        const userId = session.metadata?.userId;
+        const customerId = typeof session.customer === 'string' ? session.customer : undefined;
+        const subscriptionId = typeof session.subscription === 'string' ? session.subscription : undefined;
+        if (userId && customerId && subscriptionId) {
+          const stripe = stripeService.getStripe();
+          const sub = await stripe.subscriptions.retrieve(subscriptionId);
+          await auth.updateUserSubscription(userId, {
+            stripeCustomerId: customerId,
+            stripeSubscriptionId: subscriptionId,
+            subscriptionStatus: sub.status as stripeService.SubscriptionStatus,
+            subscriptionCurrentPeriodEnd: (sub as unknown as { current_period_end: number }).current_period_end,
+          });
+        }
+      } else if (
+        event.type === 'customer.subscription.updated' ||
+        event.type === 'customer.subscription.deleted'
+      ) {
+        const sub = event.data.object as {
+          id: string;
+          status: string;
+          customer: string;
+          current_period_end: number;
+        };
+        const customerId = typeof sub.customer === 'string' ? sub.customer : undefined;
+        if (customerId) {
+          const user = await auth.getUserByStripeCustomerId(customerId);
+          if (user) {
+            await auth.updateUserSubscription(user.userId, {
+              stripeSubscriptionId: sub.id,
+              subscriptionStatus: sub.status as stripeService.SubscriptionStatus,
+              subscriptionCurrentPeriodEnd: sub.current_period_end,
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Webhook handler error:', (err as Error).message);
+    }
+
+    return void sendJson(res, 200, { received: true });
+  }
+
+  // ── Require session for all routes below ─────────────────────────────────
   const userId = await requireSignedInUser(req, res);
   if (userId === null) return;
+
+  // ── Billing: create Stripe Checkout Session ───────────────────────────────
+  if (urlObj.pathname === '/api/billing/checkout-session' && req.method === 'POST') {
+    if (!stripeService.stripeAvailable()) {
+      return void sendJson(res, 503, { error: 'Stripe is not configured.' });
+    }
+    try {
+      const user = await auth.getUserById(userId);
+      if (!user) return void sendJson(res, 404, { error: 'User not found.' });
+
+      const stripe = stripeService.getStripe();
+      const appUrl = stripeService.getAppPublicUrl();
+      const priceId = stripeService.getPriceId();
+
+      const sessionParams: Record<string, unknown> = {
+        mode: 'subscription',
+        line_items: [{ price: priceId, quantity: 1 }],
+        success_url: `${appUrl}/subscription?checkout=success`,
+        cancel_url: `${appUrl}/subscription`,
+        metadata: { userId },
+        customer_email: user.stripeCustomerId ? undefined : user.email,
+        ...(user.stripeCustomerId ? { customer: user.stripeCustomerId } : {}),
+      };
+
+      const checkoutSession = await stripe.checkout.sessions.create(
+        sessionParams as Parameters<typeof stripe.checkout.sessions.create>[0]
+      );
+      return void sendJson(res, 200, { url: checkoutSession.url });
+    } catch (err) {
+      return void sendJson(res, 500, { error: (err as Error).message ?? 'Failed to create checkout session.' });
+    }
+  }
+
+  // ── Billing: create Stripe Customer Portal Session ────────────────────────
+  if (urlObj.pathname === '/api/billing/portal-session' && req.method === 'POST') {
+    if (!stripeService.stripeAvailable()) {
+      return void sendJson(res, 503, { error: 'Stripe is not configured.' });
+    }
+    try {
+      const user = await auth.getUserById(userId);
+      if (!user) return void sendJson(res, 404, { error: 'User not found.' });
+      if (!user.stripeCustomerId) {
+        return void sendJson(res, 400, { error: 'No Stripe customer found for this account.' });
+      }
+      const stripe = stripeService.getStripe();
+      const appUrl = stripeService.getAppPublicUrl();
+      const portalSession = await stripe.billingPortal.sessions.create({
+        customer: user.stripeCustomerId,
+        return_url: `${appUrl}/subscription`,
+      });
+      return void sendJson(res, 200, { url: portalSession.url });
+    } catch (err) {
+      return void sendJson(res, 500, { error: (err as Error).message ?? 'Failed to create portal session.' });
+    }
+  }
 
   if (urlObj.pathname === '/api/queries' && req.method === 'GET') {
     const list = await queries.getQueryList(storage, userId);
@@ -512,6 +656,15 @@ export async function handleApi(
   }
 
   if (urlObj.pathname === '/api/generate-pdf' && req.method === 'GET') {
+    // Subscription gate
+    const user = await auth.getUserById(userId);
+    if (user && !stripeService.isActiveSubscription(user.subscriptionStatus)) {
+      return void sendJson(res, 402, {
+        error: 'An active subscription is required to generate PDFs.',
+        code: 'SUBSCRIPTION_REQUIRED',
+      });
+    }
+
     const queryName = urlObj.searchParams.get('query');
     if (!queryName) {
       return void sendJson(res, 400, { error: 'Missing query parameter.' });

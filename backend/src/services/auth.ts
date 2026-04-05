@@ -5,9 +5,11 @@ import {
   PutCommand,
   DeleteCommand,
   QueryCommand,
+  UpdateCommand,
 } from '@aws-sdk/lib-dynamodb';
 import * as bcrypt from 'bcryptjs';
 import { randomBytes } from 'crypto';
+import type { SubscriptionStatus } from './stripe';
 
 const USERS_TABLE = process.env.USERS_TABLE ?? '';
 const SESSIONS_TABLE = process.env.SESSIONS_TABLE ?? '';
@@ -37,6 +39,10 @@ export interface UserRecord {
   lastName?: string;
   displayName?: string;
   avatarUrl?: string;
+  stripeCustomerId?: string;
+  stripeSubscriptionId?: string;
+  subscriptionStatus?: SubscriptionStatus;
+  subscriptionCurrentPeriodEnd?: number;
 }
 
 export interface SessionRecord {
@@ -103,6 +109,20 @@ export async function getUserById(userId: string): Promise<UserRecord | null> {
   return (r.Item as UserRecord) ?? null;
 }
 
+export async function getUserByStripeCustomerId(customerId: string): Promise<UserRecord | null> {
+  const client = getClient();
+  if (!client) return null;
+  const r = await client.send(new QueryCommand({
+    TableName: USERS_TABLE,
+    IndexName: 'by-stripe-customer',
+    KeyConditionExpression: 'stripeCustomerId = :c',
+    ExpressionAttributeValues: { ':c': customerId },
+    Limit: 1,
+  }));
+  const item = r.Items?.[0];
+  return item ? (item as UserRecord) : null;
+}
+
 export async function getUserByEmail(email: string): Promise<UserRecord | null> {
   const client = getClient();
   if (!client) return null;
@@ -133,6 +153,50 @@ export async function updateUserProfile(
   return updated;
 }
 
+export async function updateUserSubscription(
+  userId: string,
+  fields: {
+    stripeCustomerId?: string;
+    stripeSubscriptionId?: string;
+    subscriptionStatus?: SubscriptionStatus;
+    subscriptionCurrentPeriodEnd?: number;
+  }
+): Promise<void> {
+  const client = getClient();
+  if (!client) return;
+  const exprs: string[] = [];
+  const names: Record<string, string> = {};
+  const vals: Record<string, unknown> = {};
+  if (fields.stripeCustomerId !== undefined) {
+    exprs.push('#cid = :cid');
+    names['#cid'] = 'stripeCustomerId';
+    vals[':cid'] = fields.stripeCustomerId;
+  }
+  if (fields.stripeSubscriptionId !== undefined) {
+    exprs.push('#sid = :sid');
+    names['#sid'] = 'stripeSubscriptionId';
+    vals[':sid'] = fields.stripeSubscriptionId;
+  }
+  if (fields.subscriptionStatus !== undefined) {
+    exprs.push('#ss = :ss');
+    names['#ss'] = 'subscriptionStatus';
+    vals[':ss'] = fields.subscriptionStatus;
+  }
+  if (fields.subscriptionCurrentPeriodEnd !== undefined) {
+    exprs.push('#pe = :pe');
+    names['#pe'] = 'subscriptionCurrentPeriodEnd';
+    vals[':pe'] = fields.subscriptionCurrentPeriodEnd;
+  }
+  if (!exprs.length) return;
+  await client.send(new UpdateCommand({
+    TableName: USERS_TABLE,
+    Key: { userId },
+    UpdateExpression: `SET ${exprs.join(', ')}`,
+    ExpressionAttributeNames: names,
+    ExpressionAttributeValues: vals,
+  }));
+}
+
 export function sanitizeUser(u: UserRecord): {
   userId: string;
   email: string;
@@ -140,6 +204,10 @@ export function sanitizeUser(u: UserRecord): {
   lastName?: string;
   displayName?: string;
   avatarUrl?: string;
+  subscription: {
+    status: SubscriptionStatus;
+    currentPeriodEnd?: number;
+  };
 } {
   return {
     userId: u.userId,
@@ -148,6 +216,10 @@ export function sanitizeUser(u: UserRecord): {
     lastName: u.lastName,
     displayName: u.displayName,
     avatarUrl: u.avatarUrl,
+    subscription: {
+      status: u.subscriptionStatus ?? 'none',
+      currentPeriodEnd: u.subscriptionCurrentPeriodEnd,
+    },
   };
 }
 

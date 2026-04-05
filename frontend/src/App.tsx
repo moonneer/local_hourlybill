@@ -15,12 +15,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ChevronRight, Loader2, LogOut, Scale } from "lucide-react";
+import { ChevronRight, CreditCard, Loader2, LogOut, Scale } from "lucide-react";
 import { useLocation as useWouterLocation } from "wouter";
 import TimeEntriesPage from "@/pages/time-entries";
 import QueryBuilderPage from "@/pages/query-builder";
 import PdfPage from "@/pages/pdf-generator";
 import LoginPage from "@/pages/login";
+import SubscriptionPage from "@/pages/subscription";
 import NotFound from "@/pages/not-found";
 import { useCurrentUser, type UserInfo } from "@/hooks/use-auth";
 
@@ -80,6 +81,14 @@ function ProfileMenu() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem
+          onClick={() => navigate("/subscription")}
+          className="cursor-pointer py-2"
+        >
+          <CreditCard className="mr-2 h-4 w-4" />
+          Subscription
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
           data-testid="menu-item-sign-out"
           onClick={handleSignOut}
           className="cursor-pointer py-2 text-destructive focus:bg-destructive/10 focus:text-destructive"
@@ -98,6 +107,7 @@ function Header() {
   if (location.startsWith("/query")) title = "Matters";
   else if (location.startsWith("/pdf")) title = "Invoices";
   else if (location.startsWith("/login")) title = "Sign in";
+  else if (location.startsWith("/subscription")) title = "Subscription";
 
   return (
     <header className="flex items-center justify-between gap-2 sm:gap-4 px-3 sm:px-6 py-3 sm:py-4 border-b border-border bg-white/80 backdrop-blur-md sticky top-0 z-30 shrink-0 shadow-sm safe-pt">
@@ -172,6 +182,7 @@ function Router() {
         <Route path="/" component={TimeEntriesPage} />
         <Route path="/query" component={QueryBuilderPage} />
         <Route path="/pdf" component={PdfPage} />
+        <Route path="/subscription" component={SubscriptionPage} />
         <Route path="/login" component={LoginPage} />
         <Route component={NotFound} />
       </Switch>

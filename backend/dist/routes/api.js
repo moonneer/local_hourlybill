@@ -36,6 +36,7 @@ const utils_1 = require("../utils");
 const queries = __importStar(require("../services/queries"));
 const inputs = __importStar(require("../services/inputs"));
 const auth = __importStar(require("../services/auth"));
+const stripeService = __importStar(require("../services/stripe"));
 const session_1 = require("../session");
 const activePipelines = new Map();
 function runPixiPython(res, args, options = {}) {
@@ -77,6 +78,22 @@ async function collectBody(req, maxBytes) {
                 req.destroy();
         });
         req.on('end', () => resolve(body));
+        req.on('error', reject);
+    });
+}
+async function collectBodyBuffer(req, maxBytes) {
+    return new Promise((resolve, reject) => {
+        const chunks = [];
+        let size = 0;
+        req.on('data', (chunk) => {
+            size += chunk.length;
+            if (size > maxBytes) {
+                req.destroy();
+                return;
+            }
+            chunks.push(chunk);
+        });
+        req.on('end', () => resolve(Buffer.concat(chunks)));
         req.on('error', reject);
     });
 }
@@ -225,9 +242,117 @@ async function handleApi(req, res, urlObj, storage) {
             return void (0, utils_1.sendJson)(res, 404, { error: 'User not found.' });
         return void (0, utils_1.sendJson)(res, 200, { profile: auth.sanitizeUser(updated) });
     }
+    // ── Stripe webhook (no session auth; raw body required) ──────────────────
+    if (urlObj.pathname === '/api/stripe/webhook' && req.method === 'POST') {
+        if (!stripeService.stripeAvailable()) {
+            return void (0, utils_1.sendJson)(res, 503, { error: 'Stripe is not configured.' });
+        }
+        const rawBody = await collectBodyBuffer(req, 1000000);
+        const sig = req.headers['stripe-signature'];
+        if (!sig || typeof sig !== 'string') {
+            return void (0, utils_1.sendJson)(res, 400, { error: 'Missing Stripe-Signature header.' });
+        }
+        let event;
+        try {
+            event = stripeService.getStripe().webhooks.constructEvent(rawBody, sig, stripeService.getWebhookSecret());
+        }
+        catch (err) {
+            return void (0, utils_1.sendJson)(res, 400, { error: `Webhook signature verification failed: ${err.message}` });
+        }
+        try {
+            if (event.type === 'checkout.session.completed') {
+                const session = event.data.object;
+                const userId = session.metadata?.userId;
+                const customerId = typeof session.customer === 'string' ? session.customer : undefined;
+                const subscriptionId = typeof session.subscription === 'string' ? session.subscription : undefined;
+                if (userId && customerId && subscriptionId) {
+                    const stripe = stripeService.getStripe();
+                    const sub = await stripe.subscriptions.retrieve(subscriptionId);
+                    await auth.updateUserSubscription(userId, {
+                        stripeCustomerId: customerId,
+                        stripeSubscriptionId: subscriptionId,
+                        subscriptionStatus: sub.status,
+                        subscriptionCurrentPeriodEnd: sub.current_period_end,
+                    });
+                }
+            }
+            else if (event.type === 'customer.subscription.updated' ||
+                event.type === 'customer.subscription.deleted') {
+                const sub = event.data.object;
+                const customerId = typeof sub.customer === 'string' ? sub.customer : undefined;
+                if (customerId) {
+                    const user = await auth.getUserByStripeCustomerId(customerId);
+                    if (user) {
+                        await auth.updateUserSubscription(user.userId, {
+                            stripeSubscriptionId: sub.id,
+                            subscriptionStatus: sub.status,
+                            subscriptionCurrentPeriodEnd: sub.current_period_end,
+                        });
+                    }
+                }
+            }
+        }
+        catch (err) {
+            console.error('Webhook handler error:', err.message);
+        }
+        return void (0, utils_1.sendJson)(res, 200, { received: true });
+    }
+    // ── Require session for all routes below ─────────────────────────────────
     const userId = await requireSignedInUser(req, res);
     if (userId === null)
         return;
+    // ── Billing: create Stripe Checkout Session ───────────────────────────────
+    if (urlObj.pathname === '/api/billing/checkout-session' && req.method === 'POST') {
+        if (!stripeService.stripeAvailable()) {
+            return void (0, utils_1.sendJson)(res, 503, { error: 'Stripe is not configured.' });
+        }
+        try {
+            const user = await auth.getUserById(userId);
+            if (!user)
+                return void (0, utils_1.sendJson)(res, 404, { error: 'User not found.' });
+            const stripe = stripeService.getStripe();
+            const appUrl = stripeService.getAppPublicUrl();
+            const priceId = stripeService.getPriceId();
+            const sessionParams = {
+                mode: 'subscription',
+                line_items: [{ price: priceId, quantity: 1 }],
+                success_url: `${appUrl}/subscription?checkout=success`,
+                cancel_url: `${appUrl}/subscription`,
+                metadata: { userId },
+                customer_email: user.stripeCustomerId ? undefined : user.email,
+                ...(user.stripeCustomerId ? { customer: user.stripeCustomerId } : {}),
+            };
+            const checkoutSession = await stripe.checkout.sessions.create(sessionParams);
+            return void (0, utils_1.sendJson)(res, 200, { url: checkoutSession.url });
+        }
+        catch (err) {
+            return void (0, utils_1.sendJson)(res, 500, { error: err.message ?? 'Failed to create checkout session.' });
+        }
+    }
+    // ── Billing: create Stripe Customer Portal Session ────────────────────────
+    if (urlObj.pathname === '/api/billing/portal-session' && req.method === 'POST') {
+        if (!stripeService.stripeAvailable()) {
+            return void (0, utils_1.sendJson)(res, 503, { error: 'Stripe is not configured.' });
+        }
+        try {
+            const user = await auth.getUserById(userId);
+            if (!user)
+                return void (0, utils_1.sendJson)(res, 404, { error: 'User not found.' });
+            if (!user.stripeCustomerId) {
+                return void (0, utils_1.sendJson)(res, 400, { error: 'No Stripe customer found for this account.' });
+            }
+            const stripe = stripeService.getStripe();
+            const appUrl = stripeService.getAppPublicUrl();
+            const portalSession = await stripe.billingPortal.sessions.create({
+                customer: user.stripeCustomerId,
+                return_url: `${appUrl}/subscription`,
+            });
+            return void (0, utils_1.sendJson)(res, 200, { url: portalSession.url });
+        }
+        catch (err) {
+            return void (0, utils_1.sendJson)(res, 500, { error: err.message ?? 'Failed to create portal session.' });
+        }
+    }
     if (urlObj.pathname === '/api/queries' && req.method === 'GET') {
         const list = await queries.getQueryList(storage, userId);
         return void (0, utils_1.sendJson)(res, 200, { queries: list });
@@ -501,6 +626,14 @@ async function handleApi(req, res, urlObj, storage) {
         return;
     }
     if (urlObj.pathname === '/api/generate-pdf' && req.method === 'GET') {
+        // Subscription gate
+        const user = await auth.getUserById(userId);
+        if (user && !stripeService.isActiveSubscription(user.subscriptionStatus)) {
+            return void (0, utils_1.sendJson)(res, 402, {
+                error: 'An active subscription is required to generate PDFs.',
+                code: 'SUBSCRIPTION_REQUIRED',
+            });
+        }
         const queryName = urlObj.searchParams.get('query');
         if (!queryName) {
             return void (0, utils_1.sendJson)(res, 400, { error: 'Missing query parameter.' });
